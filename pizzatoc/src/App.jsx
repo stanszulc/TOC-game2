@@ -217,8 +217,8 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
       <h2 className="text-4xl font-black text-red-500">AWARIA PRĄDU!</h2>
       {wipCount.current > 0 && (
         <div className="bg-red-950 border border-red-800 rounded-2xl px-6 py-3">
-          <div className="flex items-center gap-2 text-red-400 text-xl font-black animate-pulse">
-            <TrendingDown size={20} /> ${wipCount.current * PENALTY_RATE} / sek
+          <div className="flex items-center gap-2 text-red-400 text-2xl font-black animate-pulse">
+            <TrendingDown size={55} /> ${wipCount.current * PENALTY_RATE} $
           </div>
           <p className="text-red-700 text-xs mt-1">{wipCount.current} WIP × ${PENALTY_RATE}</p>
         </div>
