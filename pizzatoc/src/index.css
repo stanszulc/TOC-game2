@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+* { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+body { overscroll-behavior: none; margin: 0; }
+#root { width: 100%; max-width: 100%; text-align: left; }
