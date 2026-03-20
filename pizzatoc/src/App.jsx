@@ -4,28 +4,22 @@ import { Pizza, RotateCcw, Trophy, Zap, TrendingDown, ChevronRight, BarChart2, X
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const GAME_DURATION   = 30;
 const OUTAGE_START    = 10;
-const PROD_TIME       = GAME_DURATION - OUTAGE_START; // 20s czasu produkcji
+const PROD_TIME       = GAME_DURATION - OUTAGE_START;
 const PIZZA_VAL       = 100;
 const PENALTY_RATE    = 30;
 const OVEN_MS         = 3000;
 const TAPS_PER_PIZZA  = 10;
-const WORLD_RECORD_CPS = 10; // 100% OEE kucharza
+const WORLD_RECORD_CPS = 10;
 
 const fmt  = (n) => (n < 0 ? `-$${Math.abs(n)}` : `$${n}`);
 const pct  = (v, max) => Math.round(Math.min(v / max, 1) * 100);
 const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
 
-// ─── OEE KALKULACJE ───────────────────────────────────────────────────────────
-// Chef OEE%  = maxCps / WORLD_RECORD_CPS * 100
-// Oven OEE%  = (baked * OVEN_MS/1000) / PROD_TIME * 100  (ile czasu piec faktycznie pracował)
-// Max możliwe pizze kucharza  = floor(totalTaps / TAPS_PER_PIZZA)
-// Max możliwe pizze pieca     = floor(PROD_TIME / (OVEN_MS/1000)) = 6 pizz w 20s
-
 const calcOee = (r) => {
   const chefOee    = pct(r.maxCps, WORLD_RECORD_CPS);
   const ovenOee    = pct(r.baked * (OVEN_MS / 1000), PROD_TIME);
   const maxByChef  = Math.floor((r.totalTaps || 0) / TAPS_PER_PIZZA);
-  const maxByOven  = Math.floor(PROD_TIME / (OVEN_MS / 1000)); // = 6
+  const maxByOven  = Math.floor(PROD_TIME / (OVEN_MS / 1000));
   const lost       = maxByOven - r.baked;
   return { chefOee, ovenOee, maxByChef, maxByOven, lost };
 };
@@ -67,46 +61,33 @@ const createAudio = () => {
 const audio = createAudio();
 
 // ─── DUAL GAUGE ───────────────────────────────────────────────────────────────
-// Dwa pierścienie: zewnętrzny (cieńszy) = rekord sesji, wewnętrzny (grubszy) = bieżący
 const DualGauge = ({ label, unit, value, maxValue, sessionBest, worldMax, colorFn, size = 120 }) => {
   const cx = size / 2, cy = size / 2;
   const rOuter = size * 0.42;
   const rInner = size * 0.30;
   const circ   = (r) => 2 * Math.PI * r;
-  const ARC    = 0.75; // 270°
+  const ARC    = 0.75;
   const offset = (r) => circ(r) * (1 - ARC) / 2;
-
   const curPct  = Math.min(value / worldMax, 1);
   const bestPct = Math.min((sessionBest || 0) / worldMax, 1);
   const color   = colorFn(curPct);
-
-  const arc = (r, pct) => pct * circ(r) * ARC;
-
+  const arc = (r, p) => p * circ(r) * ARC;
   const pctNum   = Math.round(curPct * 100);
   const bestPctN = Math.round(bestPct * 100);
 
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-          style={{ transform: 'rotate(135deg)' }}>
-          {/* track outer */}
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(135deg)' }}>
           <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="#1e293b" strokeWidth={size * 0.055}
-            strokeDasharray={`${circ(rOuter) * ARC} ${circ(rOuter)}`}
-            strokeDashoffset={-offset(rOuter)} strokeLinecap="round" />
-          {/* track inner */}
+            strokeDasharray={`${circ(rOuter) * ARC} ${circ(rOuter)}`} strokeDashoffset={-offset(rOuter)} strokeLinecap="round" />
           <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="#1e293b" strokeWidth={size * 0.07}
-            strokeDasharray={`${circ(rInner) * ARC} ${circ(rInner)}`}
-            strokeDashoffset={-offset(rInner)} strokeLinecap="round" />
-          {/* session best outer ring */}
+            strokeDasharray={`${circ(rInner) * ARC} ${circ(rInner)}`} strokeDashoffset={-offset(rInner)} strokeLinecap="round" />
           <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="#475569" strokeWidth={size * 0.045}
-            strokeDasharray={`${arc(rOuter, bestPct)} ${circ(rOuter)}`}
-            strokeDashoffset={-offset(rOuter)} strokeLinecap="round"
+            strokeDasharray={`${arc(rOuter, bestPct)} ${circ(rOuter)}`} strokeDashoffset={-offset(rOuter)} strokeLinecap="round"
             style={{ transition: 'stroke-dasharray 0.3s' }} />
-          {/* current inner ring */}
           <circle cx={cx} cy={cy} r={rInner} fill="none" stroke={color} strokeWidth={size * 0.07}
-            strokeDasharray={`${arc(rInner, curPct)} ${circ(rInner)}`}
-            strokeDashoffset={-offset(rInner)} strokeLinecap="round"
+            strokeDasharray={`${arc(rInner, curPct)} ${circ(rInner)}`} strokeDashoffset={-offset(rInner)} strokeLinecap="round"
             style={{ transition: 'stroke-dasharray 0.12s, stroke 0.3s' }} />
         </svg>
         <div className="absolute flex flex-col items-center leading-none text-center">
@@ -126,13 +107,9 @@ const DualGauge = ({ label, unit, value, maxValue, sessionBest, worldMax, colorF
 const TrafficLight = ({ ovenActive, powerOutage }) => (
   <div className="flex flex-col items-center gap-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-xl flex-shrink-0">
     <div className={`w-7 h-7 rounded-full border-2 transition-all duration-300 ${
-      !powerOutage && !ovenActive
-        ? 'bg-green-400 border-green-300 shadow-[0_0_14px_3px_rgba(74,222,128,0.7)]'
-        : 'bg-slate-800 border-slate-700 opacity-20'}`} />
+      !powerOutage && !ovenActive ? 'bg-green-400 border-green-300 shadow-[0_0_14px_3px_rgba(74,222,128,0.7)]' : 'bg-slate-800 border-slate-700 opacity-20'}`} />
     <div className={`w-7 h-7 rounded-full border-2 transition-all duration-300 ${
-      powerOutage || ovenActive
-        ? 'bg-red-500 border-red-300 shadow-[0_0_14px_3px_rgba(239,68,68,0.8)]'
-        : 'bg-slate-800 border-slate-700 opacity-20'}`} />
+      powerOutage || ovenActive ? 'bg-red-500 border-red-300 shadow-[0_0_14px_3px_rgba(239,68,68,0.8)]' : 'bg-slate-800 border-slate-700 opacity-20'}`} />
     <span className="text-[7px] text-slate-700 uppercase tracking-widest mt-0.5">PIEC</span>
   </div>
 );
@@ -199,7 +176,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
 };
 
 // ─── OEE HELPERS ─────────────────────────────────────────────────────────────
-const MAX_BY_OVEN = Math.floor(PROD_TIME / (OVEN_MS / 1000)); // 6
+const MAX_BY_OVEN = Math.floor(PROD_TIME / (OVEN_MS / 1000));
 
 const oeeGrade = (p) => {
   if (p >= 85) return { bg: '#0a1f10', border: '#1a4a25', text: '#4ade80', desc: '#86c898', sub: '#4ade8088' };
@@ -207,31 +184,23 @@ const oeeGrade = (p) => {
   return             { bg: '#1f0a0a', border: '#4a1515', text: '#f87171', desc: '#c06060', sub: '#f8717188' };
 };
 
-// ─── OEE PANEL — jedna próba ──────────────────────────────────────────────────
+// ─── OEE PANEL ────────────────────────────────────────────────────────────────
 const OeePanel = ({ r }) => {
-  const avail = 67; // stałe: 20/30
+  const avail = 67;
   const perf  = Math.min(100, Math.round((r.baked / MAX_BY_OVEN) * 100));
   const total = r.baked + r.wipAtEnd;
   const qual  = total === 0 ? 100 : Math.round((r.baked / total) * 100);
   const oee   = Math.round(avail * perf * qual / 10000);
-
   const ca = oeeGrade(avail), cp = oeeGrade(perf), cq = oeeGrade(qual), cr = oeeGrade(oee);
-
-  const tileStyle = (g) => ({
-    background: g.bg, border: `1px solid ${g.border}`,
-    borderRadius: 12, padding: '14px 10px', textAlign: 'center', flex: 1,
-  });
+  const tileStyle = (g) => ({ background: g.bg, border: `1px solid ${g.border}`, borderRadius: 12, padding: '14px 10px', textAlign: 'center', flex: 1 });
 
   return (
     <div style={{ background: '#1a2035', border: '1px solid #2a3150', borderRadius: 16, overflow: 'hidden', color: '#fff', marginBottom: 12 }}>
-      {/* header próby */}
       <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #2a3150' }}>
         <span style={{ fontWeight: 600, fontSize: 15 }}>Próba #{r.attempt}</span>
         <span style={{ fontWeight: 700, fontSize: 15, color: r.balance >= 0 ? '#4ade80' : '#f87171' }}>{fmt(r.balance)}</span>
       </div>
-
       <div style={{ padding: '14px 14px 0' }}>
-        {/* 3 kafle */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <div style={tileStyle(ca)}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: ca.text, marginBottom: 6 }}>Dostępność</div>
@@ -252,8 +221,6 @@ const OeePanel = ({ r }) => {
             <div style={{ fontSize: 10, color: '#f87171', marginTop: 4 }}>{r.wipAtEnd} WIP = NOK (scrap)</div>
           </div>
         </div>
-
-        {/* OEE wynik */}
         <div style={{ background: cr.bg, border: `1px solid ${cr.border}`, borderRadius: 10, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <div style={{ fontSize: 10, color: '#8890aa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>OEE Pizzerii</div>
@@ -262,8 +229,6 @@ const OeePanel = ({ r }) => {
           <div style={{ fontSize: 28, fontWeight: 500, color: cr.text }}>{oee}%</div>
         </div>
       </div>
-
-      {/* Karta EDU */}
       <div style={{ borderTop: '1px solid #2a3150' }}>
         <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, background: '#0d1520', borderBottom: '1px solid #2a3150' }}>
           <span style={{ fontSize: 22 }}>📐</span>
@@ -344,14 +309,9 @@ const ResultsTable = ({ history, onRestart }) => {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-5 pb-12">
       {showOee && <OeeAnalysis history={history} onClose={() => setShowOee(false)} />}
-
       <Trophy size={44} className="text-yellow-400 mb-3" />
-      <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
-        RAPORT KOŃCOWY
-      </h1>
+      <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">RAPORT KOŃCOWY</h1>
       <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-6">OEE vs Theory of Constraints</p>
-
-      {/* Table */}
       <div className="w-full max-w-lg space-y-3 mb-6">
         <div className="grid grid-cols-5 gap-2 text-[10px] text-slate-600 uppercase px-3">
           <span>Próba</span><span className="text-center">$</span>
@@ -362,8 +322,7 @@ const ResultsTable = ({ history, onRestart }) => {
           const isBest = r.balance === best.balance;
           const { chefOee, ovenOee } = calcOee(r);
           return (
-            <div key={i} className={`rounded-xl border overflow-hidden ${
-              isBest ? 'border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-800'}`}>
+            <div key={i} className={`rounded-xl border overflow-hidden ${isBest ? 'border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-800'}`}>
               <div className={`grid grid-cols-5 gap-2 items-center px-3 py-2.5 ${isBest ? 'bg-orange-500/10' : 'bg-slate-900'}`}>
                 <span className="font-bold text-sm flex items-center gap-1">
                   {isBest && <Trophy size={10} className="text-yellow-400" />}#{r.attempt}
@@ -373,7 +332,6 @@ const ResultsTable = ({ history, onRestart }) => {
                 <span className="text-center text-slate-200 text-sm">{r.baked}</span>
                 <span className={`text-center text-sm font-bold ${r.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500'}`}>{r.wipAtEnd}</span>
               </div>
-              {/* OEE mini bar */}
               <div className="grid grid-cols-2 gap-px bg-slate-800">
                 <div className="bg-slate-950 px-3 py-1 flex items-center gap-2">
                   <span className="text-[9px] text-slate-600">Kucharz</span>
@@ -394,8 +352,6 @@ const ResultsTable = ({ history, onRestart }) => {
           );
         })}
       </div>
-
-      {/* Drum insight */}
       <div className="w-full max-w-lg mb-5 rounded-3xl overflow-hidden border border-orange-900 shadow-[0_0_30px_rgba(249,115,22,0.12)]">
         <div className="bg-gradient-to-r from-orange-950 to-red-950 px-5 py-3 flex items-center gap-3">
           <span className="text-2xl">🥁</span>
@@ -406,15 +362,11 @@ const ResultsTable = ({ history, onRestart }) => {
         </div>
         <div className="bg-slate-900 px-5 py-4 space-y-3 text-sm leading-relaxed">
           <p className="text-slate-200">To wibro przy każdej pizzy — to był <strong className="text-orange-400">rytm wąskiego gardła</strong>.</p>
-          <p className="text-slate-400">W TOC ten rytm ma nazwę: <strong className="text-white">Drum</strong> — bęben, który wybija tempo całej produkcji.
-            Piec bije co <strong className="text-orange-400">3 sekundy</strong>. Nie szybciej, nie wolniej.</p>
+          <p className="text-slate-400">W TOC ten rytm ma nazwę: <strong className="text-white">Drum</strong> — bęben, który wybija tempo całej produkcji. Piec bije co <strong className="text-orange-400">3 sekundy</strong>. Nie szybciej, nie wolniej.</p>
           <div className="border-t border-slate-800 pt-3">
             <p className="text-orange-300 font-bold text-[10px] uppercase tracking-widest mb-2">Drum–Buffer–Rope</p>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              {[['🥁','Drum','text-orange-400','rytm pieca co 3s'],
-                ['🛡️','Buffer','text-blue-400','mały zapas przed piecem'],
-                ['🪢','Rope','text-green-400','hamuje kucharza = brak WIP']
-              ].map(([e,n,c,d]) => (
+              {[['🥁','Drum','text-orange-400','rytm pieca co 3s'],['🛡️','Buffer','text-blue-400','mały zapas przed piecem'],['🪢','Rope','text-green-400','hamuje kucharza = brak WIP']].map(([e,n,c,d]) => (
                 <div key={n} className="bg-slate-800 rounded-xl p-2.5">
                   <p className="text-xl mb-1">{e}</p>
                   <p className={`font-bold ${c}`}>{n}</p>
@@ -425,8 +377,6 @@ const ResultsTable = ({ history, onRestart }) => {
           </div>
         </div>
       </div>
-
-      {/* Buttons */}
       <div className="flex flex-col gap-3 w-full max-w-sm">
         <button onClick={() => setShowOee(true)}
           className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
@@ -447,15 +397,13 @@ const AttemptResult = ({ result, attempt, onNext, isLast }) => {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
       <h2 className="text-base text-slate-500 uppercase tracking-widest mb-1">Wynik próby</h2>
-      <h1 className="text-5xl font-black mb-6 bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text text-transparent">
-        #{result.attempt}
-      </h1>
+      <h1 className="text-5xl font-black mb-6 bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text text-transparent">#{result.attempt}</h1>
       <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-6">
         {[
-          { label: 'Zysk',         value: fmt(result.balance), color: result.balance >= 0 ? 'text-green-400' : 'text-red-500' },
-          { label: 'Rekord CPS',   value: result.maxCps,       color: 'text-blue-400' },
-          { label: '🍕 Upieczone', value: result.baked,        color: 'text-orange-400' },
-          { label: '🗑 WIP',       value: result.wipAtEnd,     color: result.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500' },
+          { label: 'Zysk', value: fmt(result.balance), color: result.balance >= 0 ? 'text-green-400' : 'text-red-500' },
+          { label: 'Rekord CPS', value: result.maxCps, color: 'text-blue-400' },
+          { label: '🍕 Upieczone', value: result.baked, color: 'text-orange-400' },
+          { label: '🗑 WIP', value: result.wipAtEnd, color: result.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
             <p className="text-[9px] text-slate-500 uppercase mb-1">{label}</p>
@@ -463,7 +411,6 @@ const AttemptResult = ({ result, attempt, onNext, isLast }) => {
           </div>
         ))}
       </div>
-      {/* OEE mini summary */}
       <div className="w-full max-w-sm grid grid-cols-2 gap-3 mb-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
           <p className="text-[9px] text-slate-500 uppercase mb-1">OEE Kucharza</p>
@@ -493,7 +440,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
   const [ovenActive,  setOvenActive]  = useState(false);
   const [cps,         setCps]         = useState(0);
   const [maxCps,      setMaxCps]      = useState(0);
-  const [ovenOeePct,  setOvenOeePct]  = useState(0); // live oven OEE
+  const [ovenOeePct,  setOvenOeePct]  = useState(0);
   const [baked,       setBaked]       = useState(0);
   const [powerOutage, setPowerOutage] = useState(false);
   const [showOutage,  setShowOutage]  = useState(false);
@@ -504,7 +451,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
   const bakedRef     = useRef(0);
   const maxCpsRef    = useRef(0);
   const totalTapsRef = useRef(0);
-  const ovenWorkMs   = useRef(0); // накопленное время работы пici
+  const ovenWorkMs   = useRef(0);
   const tapTimes     = useRef([]);
   const finishedRef  = useRef(false);
   const outageRef    = useRef(false);
@@ -515,7 +462,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
   const updOven    = (v) => { ovenRef.current = v;    setOvenActive(v); };
   const updBaked   = (v) => { bakedRef.current = v;   setBaked(v); };
 
-  // CPS ticker
   useEffect(() => {
     const id = setInterval(() => {
       const now = Date.now();
@@ -523,8 +469,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
       const c = tapTimes.current.length;
       setCps(c);
       if (c > maxCpsRef.current) { maxCpsRef.current = c; setMaxCps(c); }
-
-      // live oven OEE
       const elapsed = Math.min((now - gameStartRef.current) / 1000, PROD_TIME);
       if (elapsed > 0) {
         const workSec = bakedRef.current * (OVEN_MS / 1000);
@@ -534,9 +478,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
     return () => clearInterval(id);
   }, []);
 
-  // Oven — setTimeout chain: natychmiastowa reakcja na WIP
   const ovenTimerRef = useRef(null);
-
   const runOven = useRef(null);
   runOven.current = () => {
     if (outageRef.current || finishedRef.current) return;
@@ -563,7 +505,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
     return () => { if (ovenTimerRef.current) clearTimeout(ovenTimerRef.current); };
   }, [powerOutage]);
 
-  // Timer
   useEffect(() => {
     const id = setInterval(() => {
       setTimeLeft(prev => {
@@ -591,12 +532,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
   }, []);
 
   const doFinish = () => onFinish({
-    attempt,
-    balance:    balanceRef.current,
-    maxCps:     maxCpsRef.current,
-    baked:      bakedRef.current,
-    wipAtEnd:   wipRef.current,
-    totalTaps:  totalTapsRef.current,
+    attempt, balance: balanceRef.current, maxCps: maxCpsRef.current,
+    baked: bakedRef.current, wipAtEnd: wipRef.current, totalTaps: totalTapsRef.current,
   });
 
   const handleOutageUnlock = () => {
@@ -622,28 +559,15 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
     });
   }, []);
 
-  const chefOeePct  = pct(maxCps, WORLD_RECORD_CPS);
-  const isOutage    = timeLeft <= OUTAGE_START;
-  const timePct     = timeLeft / GAME_DURATION;
+  const isOutage = timeLeft <= OUTAGE_START;
+  const timePct  = timeLeft / GAME_DURATION;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 font-sans select-none">
-      {/* ── HEADER: dual gauge + timer + balance ── */}
       <div className="flex items-center justify-between mb-4 gap-2">
-
-        {/* Gauge 1: Chef OEE */}
-        <DualGauge
-          label="Kucharz OEE"
-          unit=" CPS"
-          value={cps}
-          maxValue={WORLD_RECORD_CPS}
-          sessionBest={maxCps}
-          worldMax={WORLD_RECORD_CPS}
-          size={110}
-          colorFn={(p) => p > 0.75 ? '#22c55e' : p > 0.45 ? '#f97316' : '#ef4444'}
-        />
-
-        {/* Timer column */}
+        <DualGauge label="Kucharz OEE" unit=" CPS" value={cps} maxValue={WORLD_RECORD_CPS}
+          sessionBest={maxCps} worldMax={WORLD_RECORD_CPS} size={110}
+          colorFn={(p) => p > 0.75 ? '#22c55e' : p > 0.45 ? '#f97316' : '#ef4444'} />
         <div className="flex flex-col items-center flex-1 gap-1 min-w-0">
           <p className="text-[8px] text-slate-600 uppercase tracking-widest">Próba {attempt}/3</p>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -654,36 +578,21 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
             ${isOutage ? 'text-red-500 animate-pulse' : timeLeft <= 15 ? 'text-orange-400' : 'text-white'}`}>
             {timeLeft}<span className="text-base text-slate-500">s</span>
           </div>
-          {isOutage && (
-            <div className="flex items-center gap-1 text-red-500 text-[9px]">
-              <Zap size={9} /> AWARIA
-            </div>
-          )}
+          {isOutage && <div className="flex items-center gap-1 text-red-500 text-[9px]"><Zap size={9} /> AWARIA</div>}
           <div className="text-right w-full mt-1">
             <p className={`text-xl font-black ${balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(balance)}</p>
             <p className="text-[9px] text-slate-600">🍕 {baked}</p>
           </div>
         </div>
-
-        {/* Gauge 2: Oven OEE */}
-        <DualGauge
-          label="Piec OEE"
-          unit="%"
-          value={ovenOeePct}
-          maxValue={100}
-          sessionBest={null}
-          worldMax={100}
-          size={110}
-          colorFn={(p) => p > 0.7 ? '#22c55e' : p > 0.4 ? '#f97316' : '#ef4444'}
-        />
+        <DualGauge label="Piec OEE" unit="%" value={ovenOeePct} maxValue={100}
+          sessionBest={null} worldMax={100} size={110}
+          colorFn={(p) => p > 0.7 ? '#22c55e' : p > 0.4 ? '#f97316' : '#ef4444'} />
       </div>
 
-      {/* ── MAIN ── */}
       {showOutage ? (
         <OutageScreen wip={wip} onUnlock={handleOutageUnlock} timeLeft={timeLeft} />
       ) : (
         <div className="flex flex-col items-center gap-4">
-          {/* Oven */}
           <div className="flex items-center gap-4 mt-1">
             {showTrafficLight && <TrafficLight ovenActive={ovenActive} powerOutage={powerOutage} />}
             <div className={`w-28 h-40 rounded-t-full border-8 flex flex-col items-center justify-center relative
@@ -697,8 +606,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
               </div>
             </div>
           </div>
-
-          {/* WIP */}
           <div className="w-full max-w-xs mt-1">
             <p className="text-[9px] text-slate-600 uppercase tracking-widest text-center mb-1">
               WIP: {wip} · tap: {taps}/{TAPS_PER_PIZZA}
@@ -715,8 +622,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
             </div>
           </div>
 
-          {/* TAP */}
-          <button onMouseDown={handleTap}
+          {/* ── TAP BUTTON — onTouchStart dla natychmiastowej reakcji na mobile ── */}
+          <button
+            onMouseDown={handleTap}
+            onTouchStart={(e) => { e.preventDefault(); handleTap(); }}
             className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-red-700
               border-8 border-orange-300 shadow-2xl active:scale-90 transition-transform duration-75
               flex flex-col items-center justify-center">
@@ -727,7 +636,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
       )}
 
       <style>{`
-        @keyframes spin  { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
+        @keyframes spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
       `}</style>
     </div>
@@ -736,10 +645,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
-  const [phase,          setPhase]         = useState('START');
-  const [attempt,        setAttempt]       = useState(1);
-  const [history,        setHistory]       = useState([]);
-  const [lastResult,     setLastResult]    = useState(null);
+  const [phase,          setPhase]          = useState('START');
+  const [attempt,        setAttempt]        = useState(1);
+  const [history,        setHistory]        = useState([]);
+  const [lastResult,     setLastResult]     = useState(null);
   const [sessionBestCps, setSessionBestCps] = useState(0);
   const MAX_ATTEMPTS = 3;
 
@@ -757,9 +666,7 @@ export default function PizzaTOC() {
   if (phase === 'START') return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6 text-center">
       <div className="text-7xl mb-4 animate-bounce">🍕</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
-        PIZZERIA TOC
-      </h1>
+      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">PIZZERIA TOC</h1>
       <p className="text-slate-400 max-w-sm mb-3 leading-relaxed text-sm">
         <strong className="text-white">3 próby</strong> × 30 sekund.<br/>
         20s produkcja · 10s <span className="text-red-400 font-bold">awaria prądu</span><br/>
