@@ -114,17 +114,86 @@ const TrafficLight = ({ ovenActive, powerOutage }) => (
   </div>
 );
 
+// ─── WIP PIZZA ITEM (z animacją kary) ────────────────────────────────────────
+const WipPizzaItem = ({ index, showPenalty }) => {
+  const [phase, setPhase] = useState('alive'); // 'alive' | 'dying' | 'dead'
+  const [showNumber, setShowNumber] = useState(false);
+  const triggered = useRef(false);
+
+  useEffect(() => {
+    if (!showPenalty || triggered.current) return;
+    triggered.current = true;
+    const delay = index * 150;
+
+    // Start dying animation
+    const t1 = setTimeout(() => {
+      setPhase('dying');
+      setShowNumber(true);
+    }, delay);
+
+    // Turn to skull
+    const t2 = setTimeout(() => {
+      setPhase('dead');
+    }, delay + 900);
+
+    // Hide floating number
+    const t3 = setTimeout(() => {
+      setShowNumber(false);
+    }, delay + 1400);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [showPenalty, index]);
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 32, height: 32 }}>
+      {/* Pizza / Skull */}
+      <div
+        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm transition-all
+          ${phase === 'alive'  ? 'bg-orange-900 border-orange-700' : ''}
+          ${phase === 'dying'  ? 'bg-red-950 border-red-800 wip-dying' : ''}
+          ${phase === 'dead'   ? 'bg-slate-900 border-slate-700' : ''}
+        `}
+        style={phase === 'dying' ? { animation: 'wipDie 0.9s ease-in forwards' } : {}}
+      >
+        {phase === 'dead' ? '💀' : '🍕'}
+      </div>
+
+      {/* Floating -$30 */}
+      {showNumber && (
+        <div
+          className="absolute text-red-400 font-black text-xs pointer-events-none select-none"
+          style={{
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            animation: 'floatPenalty 1.4s ease-out forwards',
+            whiteSpace: 'nowrap',
+            textShadow: '0 0 8px rgba(239,68,68,0.8)',
+            zIndex: 10,
+          }}
+        >
+          -$30
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── OUTAGE SCREEN ────────────────────────────────────────────────────────────
 const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
   const [locked, setLocked]       = useState(true);
   const [countdown, setCountdown] = useState(3);
   const [flash, setFlash]         = useState(true);
+  const [showPenalty, setShowPenalty] = useState(false);
+  const wipCount = useRef(wip); // freeze WIP count at outage start
 
   useEffect(() => {
     const timers = [
       setTimeout(() => setFlash(false), 160),
       setTimeout(() => setFlash(true),  320),
       setTimeout(() => setFlash(false), 480),
+      // Start penalty cascade shortly after flash
+      setTimeout(() => setShowPenalty(true), 300),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -137,6 +206,8 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
     return () => clearInterval(id);
   }, []);
 
+  const count = Math.min(wipCount.current, 16);
+
   return (
     <div onClick={!locked ? onUnlock : undefined}
       className="flex flex-col items-center justify-center py-6 gap-4 text-center"
@@ -144,20 +215,24 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
       {flash && <div className="fixed inset-0 bg-red-600 opacity-50 pointer-events-none z-50" />}
       <Zap size={60} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }} />
       <h2 className="text-4xl font-black text-red-500">AWARIA PRĄDU!</h2>
-      {wip > 0 && (
+      {wipCount.current > 0 && (
         <div className="bg-red-950 border border-red-800 rounded-2xl px-6 py-3">
           <div className="flex items-center gap-2 text-red-400 text-xl font-black animate-pulse">
-            <TrendingDown size={20} /> ${wip * PENALTY_RATE} / sek
+            <TrendingDown size={20} /> ${wipCount.current * PENALTY_RATE} / sek
           </div>
-          <p className="text-red-700 text-xs mt-1">{wip} WIP × ${PENALTY_RATE}</p>
+          <p className="text-red-700 text-xs mt-1">{wipCount.current} WIP × ${PENALTY_RATE}</p>
         </div>
       )}
-      <div className="flex flex-wrap justify-center gap-2 max-w-xs">
-        {[...Array(Math.min(wip, 16))].map((_, i) => (
-          <div key={i} className="w-8 h-8 rounded-full bg-red-900 border-2 border-red-600 flex items-center justify-center text-sm animate-bounce"
-            style={{ animationDelay: `${i * 55}ms` }}>🍕</div>
-        ))}
-      </div>
+
+      {/* WIP blat z animowanymi pizzami */}
+      {count > 0 && (
+        <div className="flex flex-wrap justify-center gap-2 max-w-xs">
+          {[...Array(count)].map((_, i) => (
+            <WipPizzaItem key={i} index={i} showPenalty={showPenalty} />
+          ))}
+        </div>
+      )}
+
       <div className="mt-4">
         {locked
           ? <div className="flex flex-col items-center gap-1">
@@ -492,6 +567,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
         updBalance(balanceRef.current + PIZZA_VAL);
         ovenWorkMs.current += OVEN_MS;
         audio.baked();
+        vibrate([50, 30, 50]);
         runOven.current();
       }, OVEN_MS);
     } else {
@@ -552,7 +628,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
       if (next >= TAPS_PER_PIZZA) {
         updWip(wipRef.current + 1);
         audio.pizza();
-        vibrate(35);
         return 0;
       }
       return next;
@@ -622,7 +697,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
             </div>
           </div>
 
-          {/* ── TAP BUTTON — onTouchStart dla natychmiastowej reakcji na mobile ── */}
           <button
             onMouseDown={handleTap}
             onTouchStart={(e) => { e.preventDefault(); handleTap(); }}
@@ -636,8 +710,18 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
       )}
 
       <style>{`
-        @keyframes spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+        @keyframes spin       { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse      { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+        @keyframes wipDie     {
+          0%   { transform: scale(1);    filter: grayscale(0)    brightness(1);   opacity: 1; }
+          30%  { transform: scale(1.2);  filter: grayscale(0.3)  brightness(1.5); opacity: 1; }
+          100% { transform: scale(0.7);  filter: grayscale(1)    brightness(0.3); opacity: 0.6; }
+        }
+        @keyframes floatPenalty {
+          0%   { transform: translateX(-50%) translateY(0px);   opacity: 1;   }
+          20%  { transform: translateX(-50%) translateY(-4px);  opacity: 1;   }
+          100% { transform: translateX(-50%) translateY(-32px); opacity: 0;   }
+        }
       `}</style>
     </div>
   );
