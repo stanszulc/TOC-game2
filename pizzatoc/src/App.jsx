@@ -173,7 +173,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
     ];
 
     // Co 1s: dźwięk D + eksplozja pizzy
-    const beatTimers = Array.from({ length: Math.min(wipCount.current, 12) }, (_, i) =>
+    const beatTimers = Array.from({ length: wipCount.current }, (_, i) =>
       setTimeout(() => {
         audio.cash();
         const trigger = triggers.current[i];
@@ -195,7 +195,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
     return () => clearInterval(id);
   }, []);
 
-  const count = Math.min(wipCount.current, 12);
+  const count = wipCount.current;
 
   return (
     <div onClick={!locked ? onUnlock : undefined}
@@ -208,9 +208,15 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
       {/* Pizze na blacie */}
       {count > 0 && (
         <div className="flex flex-wrap justify-center gap-2 max-w-xs">
-          {[...Array(count)].map((_, i) => (
+          {[...Array(Math.min(count, 20))].map((_, i) => (
             <WipPizzaItem key={i} index={i} onExplode={(idx, fn) => { triggers.current[idx] = fn; }}/>
           ))}
+          {count > 20 && (
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-red-900 border-2 border-red-600 text-xs font-black text-red-300"
+              id="extra-wip">
+              +{count - 20}
+            </div>
+          )}
         </div>
       )}
 
@@ -224,7 +230,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
           -{totalLoss}$
         </div>
         <div className="text-xs text-red-800 text-center">
-          {exploded} nieupieczone pizze × $30
+          {exploded} nieupieczone pizze × $50
         </div>
         <div className="w-full h-2 bg-red-900 rounded-full overflow-hidden">
           <div className="h-full bg-red-500 rounded-full transition-all duration-700"
@@ -232,7 +238,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
         </div>
         <div className="flex justify-between text-[10px]">
           <span className="text-red-800">Zniszczone</span>
-          <span className="text-red-400 font-bold">{exploded} / {count}</span>
+          <span className="text-red-400 font-bold">{exploded} / {wipCount.current}</span>
         </div>
       </div>
 
