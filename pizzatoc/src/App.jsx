@@ -865,7 +865,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
   const [phase,      setPhase]      = useState('START');
-  const [attempt,    setAttempt]    = useState(3);
+  const [attempt,    setAttempt]    = useState(1);
   const [history,    setHistory]    = useState([]);
   const [lastResult, setLastResult] = useState(null);
   const MAX_ATTEMPTS = 3;
