@@ -45,6 +45,13 @@ const createAudio = () => {
     whoosh: () => { play(180, 'sine', 0.07, 0.12); play(520, 'sine', 0.04, 0.1, 0.04); },
     ching:  () => { play(1046, 'triangle', 0.15, 0.35); play(1568, 'triangle', 0.12, 0.45, 0.06); play(2093, 'triangle', 0.08, 0.55, 0.12); },
     plop:   () => play(280, 'sine', 0.08, 0.08),
+    // D — Zamknięta kasa: bas + metaliczny pisk
+    cash:   () => {
+      play(120, 'sine', 0.22, 0.2);
+      play(1400, 'triangle', 0.08, 0.1, 0.05);
+      play(900, 'triangle', 0.05, 0.12, 0.12);
+    },
+    // Dźwięk awarii
     outage: () => {
       try {
         const c = ac(), o = c.createOscillator(), g = c.createGain();
@@ -71,18 +78,10 @@ const OvenSVG = ({ active, progress, pizzaPhase }) => {
   const floorStroke  = active ? '#c2410c' : '#334155';
   const lblColor     = active ? '#f97316' : '#475569';
   const progWidth    = progress * 74;
-
-  // 🫓 wjeżdża surowa, 🍕 wyjeżdża gotowa
-  const pizzaEmoji = pizzaPhase === 'exit' ? '🍕' : '🫓';
-
-  // pozycja X: enter=lewa krawędź, exit=prawa krawędź, baking=środek
-  const pizzaX = pizzaPhase === 'enter' ? 22
-               : pizzaPhase === 'exit'  ? 88
-               : 55;
+  const pizzaEmoji   = pizzaPhase === 'exit' ? '🍕' : '🫓';
+  const pizzaX       = pizzaPhase === 'enter' ? 22 : pizzaPhase === 'exit' ? 88 : 55;
   const pizzaOpacity = pizzaPhase === 'hidden' ? 0 : 1;
-
-  // styl animacji wjazdu/wyjazdu
-  let pizzaStyle = { transition: 'opacity 0.3s' };
+  let pizzaStyle     = { transition: 'opacity 0.3s' };
   if (pizzaPhase === 'enter') pizzaStyle = { animation: 'ovenEnter 0.4s ease-out forwards' };
   if (pizzaPhase === 'exit')  pizzaStyle = { animation: 'ovenExit 0.5s ease-in forwards' };
 
@@ -98,28 +97,13 @@ const OvenSVG = ({ active, progress, pizzaPhase }) => {
           @keyframes ovenExit  { from { transform: translateX(0); opacity: 1; } to { transform: translateX(30px); opacity: 0; } }
         `}</style>
       </defs>
-
       {active && <ellipse cx="55" cy="68" rx="46" ry="34" fill="url(#og)"/>}
-
-      <path d="M 8 88 Q 8 12 55 12 Q 102 12 102 88"
-        fill="none" stroke={archColor} strokeWidth="13" strokeLinecap="round" strokeDasharray="16 3"/>
-      <path d="M 18 88 Q 18 26 55 26 Q 92 26 92 88"
-        fill={insideFill} stroke={insideStroke} strokeWidth="2"/>
+      <path d="M 8 88 Q 8 12 55 12 Q 102 12 102 88" fill="none" stroke={archColor} strokeWidth="13" strokeLinecap="round" strokeDasharray="16 3"/>
+      <path d="M 18 88 Q 18 26 55 26 Q 92 26 92 88" fill={insideFill} stroke={insideStroke} strokeWidth="2"/>
       <rect x="18" y="81" width="74" height="9" rx="3" fill={floorFill} stroke={floorStroke} strokeWidth="1.5"/>
-
-      <text x={pizzaX} y="60" textAnchor="middle" dominantBaseline="central"
-        fontSize="26" opacity={pizzaOpacity} style={pizzaStyle}>
-        {pizzaEmoji}
-      </text>
-
-      {!active && (
-        <text x="55" y="56" textAnchor="middle" fontFamily="sans-serif"
-          fontSize="9" fill="#334155" fontWeight="600">PUSTY</text>
-      )}
-
-      <text x="55" y="101" textAnchor="middle" fontFamily="sans-serif"
-        fontSize="7.5" fontWeight="700" fill={lblColor} letterSpacing="0.5">WĄSKIE GARDŁO</text>
-
+      <text x={pizzaX} y="60" textAnchor="middle" dominantBaseline="central" fontSize="26" opacity={pizzaOpacity} style={pizzaStyle}>{pizzaEmoji}</text>
+      {!active && <text x="55" y="56" textAnchor="middle" fontFamily="sans-serif" fontSize="9" fill="#334155" fontWeight="600">PUSTY</text>}
+      <text x="55" y="101" textAnchor="middle" fontFamily="sans-serif" fontSize="7.5" fontWeight="700" fill={lblColor} letterSpacing="0.5">WĄSKIE GARDŁO</text>
       <rect x="18" y="109" width="74" height="4" rx="2" fill="#1e293b"/>
       {active && <rect x="18" y="109" width={progWidth} height="4" rx="2" fill="#f97316"/>}
     </svg>
@@ -134,34 +118,35 @@ const TrafficLightMini = ({ ovenActive }) => (
   </div>
 );
 
-// ─── WIP PIZZA ITEM ───────────────────────────────────────────────────────────
-const WipPizzaItem = ({ index, showPenalty }) => {
+// ─── WIP PIZZA ITEM (awaria — eksplozja) ─────────────────────────────────────
+const WipPizzaItem = ({ index, onExplode }) => {
   const [phase, setPhase]     = useState('alive');
   const [showNum, setShowNum] = useState(false);
   const triggered             = useRef(false);
 
+  // Expose trigger function via callback
   useEffect(() => {
-    if (!showPenalty || triggered.current) return;
-    triggered.current = true;
-    const delay = index * 150;
-    const t1 = setTimeout(() => { setPhase('dying'); setShowNum(true); }, delay);
-    const t2 = setTimeout(() => setPhase('dead'), delay + 900);
-    const t3 = setTimeout(() => setShowNum(false), delay + 1400);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [showPenalty, index]);
+    if (onExplode) onExplode(index, () => {
+      if (triggered.current) return;
+      triggered.current = true;
+      setPhase('dying');
+      setShowNum(true);
+      setTimeout(() => { setPhase('gone'); setShowNum(false); }, 800);
+    });
+  }, []);
+
+  if (phase === 'gone') return null;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 32, height: 32 }}>
-      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm transition-all
-        ${phase === 'alive' ? 'bg-orange-900 border-orange-700' : ''}
-        ${phase === 'dying' ? 'bg-red-950 border-red-800' : ''}
-        ${phase === 'dead'  ? 'bg-slate-900 border-slate-700' : ''}`}
-        style={phase === 'dying' ? { animation: 'wipDie 0.9s ease-in forwards' } : {}}>
-        {phase === 'dead' ? '💀' : '🍕'}
+      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm
+        ${phase === 'alive' ? 'bg-orange-900 border-orange-700' : 'bg-red-950 border-red-800'}`}
+        style={phase === 'dying' ? { animation: 'wipDie 0.8s ease-out forwards' } : {}}>
+        🫓
       </div>
       {showNum && (
         <div className="absolute text-red-400 font-black text-xs pointer-events-none select-none"
-          style={{ top: 0, left: '50%', transform: 'translateX(-50%)', animation: 'floatPenalty 1.4s ease-out forwards', whiteSpace: 'nowrap', textShadow: '0 0 8px rgba(239,68,68,0.8)', zIndex: 10 }}>
+          style={{ top: 0, left: '50%', transform: 'translateX(-50%)', animation: 'floatPenalty 1s ease-out forwards', whiteSpace: 'nowrap', textShadow: '0 0 8px rgba(239,68,68,0.8)', zIndex: 10 }}>
           -$30
         </div>
       )}
@@ -171,20 +156,34 @@ const WipPizzaItem = ({ index, showPenalty }) => {
 
 // ─── OUTAGE SCREEN ────────────────────────────────────────────────────────────
 const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
-  const [locked, setLocked]           = useState(true);
-  const [countdown, setCountdown]     = useState(3);
-  const [flash, setFlash]             = useState(true);
-  const [showPenalty, setShowPenalty] = useState(false);
-  const wipCount = useRef(wip);
+  const [locked, setLocked]       = useState(true);
+  const [countdown, setCountdown] = useState(3);
+  const [flash, setFlash]         = useState(true);
+  const [totalLoss, setTotalLoss] = useState(0);
+  const [exploded, setExploded]   = useState(0);
+  const wipCount                  = useRef(wip);
+  const triggers                  = useRef({});
 
   useEffect(() => {
-    const timers = [
+    // Flash
+    const flashTimers = [
       setTimeout(() => setFlash(false), 160),
       setTimeout(() => setFlash(true),  320),
       setTimeout(() => setFlash(false), 480),
-      setTimeout(() => setShowPenalty(true), 300),
     ];
-    return () => timers.forEach(clearTimeout);
+
+    // Co 1s: dźwięk D + eksplozja pizzy
+    const beatTimers = Array.from({ length: Math.min(wipCount.current, 8) }, (_, i) =>
+      setTimeout(() => {
+        audio.cash();
+        const trigger = triggers.current[i];
+        if (trigger) trigger();
+        setTotalLoss(t => t + PENALTY_RATE);
+        setExploded(e => e + 1);
+      }, 800 + i * 1000)
+    );
+
+    return () => { [...flashTimers, ...beatTimers].forEach(clearTimeout); };
   }, []);
 
   useEffect(() => {
@@ -195,34 +194,51 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
     return () => clearInterval(id);
   }, []);
 
-  const count = Math.min(wipCount.current, 16);
+  const count = Math.min(wipCount.current, 8);
 
   return (
     <div onClick={!locked ? onUnlock : undefined}
-      className="flex flex-col items-center justify-center py-6 gap-4 text-center"
+      className="flex flex-col items-center justify-center py-4 gap-3 text-center"
       style={{ cursor: locked ? 'default' : 'pointer' }}>
       {flash && <div className="fixed inset-0 bg-red-600 opacity-50 pointer-events-none z-50"/>}
-      <Zap size={60} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }}/>
-      <h2 className="text-4xl font-black text-red-500">AWARIA PRĄDU!</h2>
-      {wipCount.current > 0 && (
-        <div className="bg-red-950 border border-red-800 rounded-2xl px-6 py-3">
-          <div className="flex items-center gap-2 text-red-400 text-xl font-black animate-pulse">
-            <TrendingDown size={20}/> -${wipCount.current * PENALTY_RATE}$
-          </div>
-          <p className="text-red-700 text-xs mt-1">{wipCount.current} WIP × ${PENALTY_RATE}</p>
-        </div>
-      )}
+      <Zap size={50} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }}/>
+      <h2 className="text-3xl font-black text-red-500">AWARIA PRĄDU!</h2>
+
+      {/* Pizze na blacie */}
       {count > 0 && (
         <div className="flex flex-wrap justify-center gap-2 max-w-xs">
           {[...Array(count)].map((_, i) => (
-            <WipPizzaItem key={i} index={i} showPenalty={showPenalty}/>
+            <WipPizzaItem key={i} index={i} onExplode={(idx, fn) => { triggers.current[idx] = fn; }}/>
           ))}
         </div>
       )}
-      <div className="mt-4">
+
+      {/* Panel straty */}
+      <div className="w-full max-w-xs bg-red-950 border border-red-900 rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">💨</span>
+          <span className="text-[10px] text-red-700 uppercase tracking-widest font-bold">Awaria — straty</span>
+        </div>
+        <div className="text-4xl font-black text-red-400 text-center">
+          -{totalLoss}$
+        </div>
+        <div className="text-xs text-red-800 text-center">
+          {exploded} nieupieczone pizze × $30
+        </div>
+        <div className="w-full h-2 bg-red-900 rounded-full overflow-hidden">
+          <div className="h-full bg-red-500 rounded-full transition-all duration-700"
+            style={{ width: `${100 - (exploded / Math.max(count, 1)) * 100}%` }}/>
+        </div>
+        <div className="flex justify-between text-[10px]">
+          <span className="text-red-800">Zniszczone</span>
+          <span className="text-red-400 font-bold">{exploded} / {count}</span>
+        </div>
+      </div>
+
+      <div className="mt-2">
         {locked
           ? <div className="flex flex-col items-center gap-1">
-              <span className="text-6xl font-black text-slate-700">{countdown}</span>
+              <span className="text-5xl font-black text-slate-700">{countdown}</span>
               <p className="text-slate-700 text-[10px] uppercase tracking-widest">poczekaj...</p>
             </div>
           : <div className="flex flex-col items-center gap-2 animate-pulse">
@@ -522,13 +538,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     if (wipRef.current > 0) {
       updWip(wipRef.current - 1);
       setOvenActive(true);
-
-      // FAZA 1: surowa 🫓 wjeżdża z lewej
       setPizzaPhase('enter');
       audio.whoosh();
       setTimeout(() => setPizzaPhase('baking'), 400);
 
-      // pasek postępu
       let prog = 0;
       setOvenProgress(0);
       progIntervalRef.current = setInterval(() => {
@@ -538,13 +551,9 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
       ovenTimerRef.current = setTimeout(() => {
         clearInterval(progIntervalRef.current);
-
-        // FAZA 2: gotowa 🍕 wyjeżdża w prawo
         setPizzaPhase('exit');
         audio.ching();
-
         setTimeout(() => {
-          // FAZA 3: piec pusty — pauza
           setPizzaPhase('hidden');
           setOvenActive(false);
           setOvenProgress(0);
@@ -553,8 +562,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
           updBalance(balanceRef.current + PIZZA_VAL);
           audio.plop();
           vibrate([50, 30, 50]);
-
-          // FAZA 4: następna pizza po krótkiej pauzie
           setTimeout(() => runOven.current(), 300);
         }, 500);
       }, OVEN_MS);
@@ -582,10 +589,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
           setShowOutage(true);
           audio.outage();
           vibrate([200, 100, 200, 100, 400]);
-        }
-        if (next <= OUTAGE_START && outageRef.current && wipRef.current > 0) {
-          updBalance(balanceRef.current - wipRef.current * PENALTY_RATE);
-          vibrate(80);
         }
         if (next <= 0 && !finishedRef.current) {
           finishedRef.current = true;
@@ -648,8 +651,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans select-none flex flex-col px-4 pt-5 pb-4 gap-3">
-
-      {/* HUD */}
       <div className="flex items-start justify-between">
         <div className={`text-4xl font-black tabular-nums leading-none ${balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>
           {fmt(balance)}
@@ -663,12 +664,11 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
       </div>
 
       {showOutage ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-start justify-center pt-2">
           <OutageScreen wip={wip} onUnlock={handleOutageUnlock} timeLeft={timeLeft}/>
         </div>
       ) : (
         <>
-          {/* FLOW: WIP | PIEC | GOTOWE */}
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-orange-950 border border-orange-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
               <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
@@ -681,12 +681,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
               </div>
               <span className="text-[8px] text-orange-800">{wip} szt.</span>
             </div>
-
             <div className="flex flex-col items-center flex-shrink-0">
               {showTrafficLight && <TrafficLightMini ovenActive={ovenActive}/>}
               <OvenSVG active={ovenActive} progress={ovenProgress} pizzaPhase={pizzaPhase}/>
             </div>
-
             <div className="flex-1 bg-green-950 border border-green-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
               <span className="text-[7px] text-green-800 uppercase tracking-widest font-bold">⬤ Gotowe</span>
               <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
@@ -700,10 +698,9 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
             </div>
           </div>
 
-          {/* PLACEHOLDER — TOC PRO panel */}
-          <div style={{ height: 120 }} />
+          {/* PLACEHOLDER — TOC PRO */}
+          <div style={{ height: 120 }}/>
 
-          {/* RING + PRZYCISK */}
           <div className="flex flex-col items-center gap-1 mt-1">
             <div className="relative w-36 h-36">
               <svg width="144" height="144" style={{ position: 'absolute', top: 0, left: 0 }}>
@@ -726,8 +723,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
       <style>{`
         @keyframes pulse        { 0%,100%{opacity:1} 50%{opacity:0.35} }
-        @keyframes wipDie       { 0%{transform:scale(1);filter:grayscale(0) brightness(1);opacity:1} 30%{transform:scale(1.2);filter:grayscale(0.3) brightness(1.5);opacity:1} 100%{transform:scale(0.7);filter:grayscale(1) brightness(0.3);opacity:0.6} }
-        @keyframes floatPenalty { 0%{transform:translateX(-50%) translateY(0);opacity:1} 20%{transform:translateX(-50%) translateY(-4px);opacity:1} 100%{transform:translateX(-50%) translateY(-32px);opacity:0} }
+        @keyframes wipDie       { 0%{transform:scale(1);opacity:1;filter:brightness(1)} 25%{transform:scale(1.8);opacity:1;filter:brightness(3) saturate(3)} 60%{transform:scale(1.2);opacity:0.6;filter:brightness(0.5) grayscale(0.5)} 100%{transform:scale(0.2);opacity:0;filter:grayscale(1)} }
+        @keyframes floatPenalty { 0%{transform:translateX(-50%) translateY(0);opacity:1} 100%{transform:translateX(-50%) translateY(-28px);opacity:0} }
       `}</style>
     </div>
   );
@@ -763,21 +760,15 @@ export default function PizzaTOC() {
       <div className="w-full max-w-xs mb-8 text-left space-y-4">
         <div className="flex items-start gap-3">
           <span className="text-2xl flex-shrink-0">👨‍🍳</span>
-          <p className="text-sm text-slate-200 leading-relaxed">
-            <strong className="text-white">Tapuj szybko</strong>, by przygotować pizzę na blat. Piec nie może czekać!
-          </p>
+          <p className="text-sm text-slate-200 leading-relaxed"><strong className="text-white">Tapuj szybko</strong>, by przygotować pizzę na blat. Piec nie może czekać!</p>
         </div>
         <div className="flex items-start gap-3">
           <span className="text-2xl flex-shrink-0">🔥</span>
-          <p className="text-sm text-slate-200 leading-relaxed">
-            <strong className="text-white">Piec</strong> piecze jedną pizzę co 3 sekundy.
-          </p>
+          <p className="text-sm text-slate-200 leading-relaxed"><strong className="text-white">Piec</strong> piecze jedną pizzę co 3 sekundy.</p>
         </div>
         <div className="flex items-start gap-3">
           <span className="text-2xl flex-shrink-0">⚡</span>
-          <p className="text-sm text-slate-200 leading-relaxed">
-            <strong className="text-yellow-400">AWARYJNE WYŁĄCZENIE:</strong> Gdy zgaśnie światło, każda pizza na blacie generuje potężne straty!
-          </p>
+          <p className="text-sm text-slate-200 leading-relaxed"><strong className="text-yellow-400">AWARYJNE WYŁĄCZENIE:</strong> Gdy zgaśnie światło, każda pizza na blacie generuje potężne straty!</p>
         </div>
       </div>
       <button onClick={() => setPhase('PLAYING')}
