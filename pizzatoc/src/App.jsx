@@ -5,9 +5,9 @@ const GAME_DURATION    = 30;
 const OUTAGE_START     = 10;
 const PROD_TIME        = GAME_DURATION - OUTAGE_START;
 const PIZZA_VAL        = 100;
-const PENALTY_RATE     = 30;
+const PENALTY_RATE     = 50;
 const OVEN_MS          = 3000;
-const TAPS_PER_PIZZA   = 10;
+const TAPS_PER_PIZZA   = 5;
 const WORLD_RECORD_CPS = 10;
 
 const fmt = (n) => (n < 0 ? `-$${Math.abs(n)}` : `$${n}`);
@@ -155,7 +155,7 @@ const WipPizzaItem = ({ index, onExplode }) => {
 };
 
 // ─── OUTAGE SCREEN ────────────────────────────────────────────────────────────
-const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
+const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
   const [locked, setLocked]       = useState(true);
   const [countdown, setCountdown] = useState(3);
   const [flash, setFlash]         = useState(true);
@@ -173,13 +173,14 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
     ];
 
     // Co 1s: dźwięk D + eksplozja pizzy
-    const beatTimers = Array.from({ length: Math.min(wipCount.current, 8) }, (_, i) =>
+    const beatTimers = Array.from({ length: Math.min(wipCount.current, 12) }, (_, i) =>
       setTimeout(() => {
         audio.cash();
         const trigger = triggers.current[i];
         if (trigger) trigger();
         setTotalLoss(t => t + PENALTY_RATE);
         setExploded(e => e + 1);
+        onBalanceUpdate && onBalanceUpdate(PENALTY_RATE);
       }, 800 + i * 1000)
     );
 
@@ -194,7 +195,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
     return () => clearInterval(id);
   }, []);
 
-  const count = Math.min(wipCount.current, 8);
+  const count = Math.min(wipCount.current, 12);
 
   return (
     <div onClick={!locked ? onUnlock : undefined}
@@ -518,6 +519,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
   const ovenTimerRef    = useRef(null);
   const progIntervalRef = useRef(null);
 
+  const ovenRef         = useRef(false);
+  const ovenAtOutageRef = useRef(false);
   const updBalance = (v) => { balanceRef.current = v; setBalance(v); };
   const updWip     = (v) => { wipRef.current = v;     setWip(v); };
   const updBaked   = (v) => { bakedRef.current = v;   setBaked(v); };
@@ -538,6 +541,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     if (wipRef.current > 0) {
       updWip(wipRef.current - 1);
       setOvenActive(true);
+      ovenRef.current = true;
       setPizzaPhase('enter');
       audio.whoosh();
       setTimeout(() => setPizzaPhase('baking'), 400);
@@ -556,6 +560,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
         setTimeout(() => {
           setPizzaPhase('hidden');
           setOvenActive(false);
+          ovenRef.current = false;
           setOvenProgress(0);
           const nb = bakedRef.current + 1;
           updBaked(nb);
@@ -589,8 +594,15 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
           setShowOutage(true);
           audio.outage();
           vibrate([200, 100, 200, 100, 400]);
+          ovenAtOutageRef.current = ovenRef.current;
+          if (ovenTimerRef.current) clearTimeout(ovenTimerRef.current);
+          if (progIntervalRef.current) clearInterval(progIntervalRef.current);
+          setOvenActive(false);
+          setPizzaPhase('hidden');
+          if (ovenRef.current) updBalance(balanceRef.current - PENALTY_RATE);
+          ovenRef.current = false;
         }
-        if (next <= 0 && !finishedRef.current) {
+        if (next <= 0 && !finishedRef.current && !outageRef.current) {
           finishedRef.current = true;
           clearInterval(id);
           doFinish();
@@ -601,10 +613,16 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     return () => clearInterval(id);
   }, []);
 
-  const doFinish = () => onFinish({
-    attempt, balance: balanceRef.current, maxCps: maxCpsRef.current,
-    baked: bakedRef.current, wipAtEnd: wipRef.current, totalTaps: totalTapsRef.current,
+  const doFinish = () => {
+    const finalWip = wipRef.current + (ovenAtOutageRef.current ? 1 : 0);
+    const earnedFromBaking = bakedRef.current * PIZZA_VAL;
+    const penalty = finalWip * PENALTY_RATE;
+    const finalBalance = earnedFromBaking - penalty;
+    return onFinish({
+    attempt, balance: finalBalance, maxCps: maxCpsRef.current,
+    baked: bakedRef.current, wipAtEnd: finalWip, totalTaps: totalTapsRef.current,
   });
+  };
 
   const handleOutageUnlock = () => {
     if (finishedRef.current) return;
@@ -615,7 +633,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
   const handleTap = useCallback(() => {
     if (outageRef.current || finishedRef.current) return;
     const now = Date.now();
-    if (now - lastTapRef.current < 80) return;
+    if (now - lastTapRef.current < 20) return;
     lastTapRef.current = now;
     audio.tap();
     totalTapsRef.current += 1;
@@ -633,10 +651,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
   const isOutage = timeLeft <= OUTAGE_START;
 
-  const segments = Array.from({ length: TAPS_PER_PIZZA }, (_, i) => {
+  const segments = Array.from({ length: 4 }, (_, i) => {
     const r = 68, ri = 52, gap = 4;
-    const a1 = (i * 36 - 90) * Math.PI / 180;
-    const a2 = ((i + 1) * 36 - 90 - gap) * Math.PI / 180;
+    const a1 = (i * 90 - 90) * Math.PI / 180;
+    const a2 = ((i + 1) * 90 - 90 - gap) * Math.PI / 180;
     const x1 = r*Math.cos(a1), y1 = r*Math.sin(a1);
     const x2 = r*Math.cos(a2), y2 = r*Math.sin(a2);
     const xi1 = ri*Math.cos(a1), yi1 = ri*Math.sin(a1);
@@ -665,7 +683,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
       {showOutage ? (
         <div className="flex-1 flex items-start justify-center pt-2">
-          <OutageScreen wip={wip} onUnlock={handleOutageUnlock} timeLeft={timeLeft}/>
+          <OutageScreen wip={wip} onUnlock={handleOutageUnlock} timeLeft={timeLeft} onBalanceUpdate={(penalty) => updBalance(balanceRef.current - penalty)}/>
         </div>
       ) : (
         <>
@@ -674,7 +692,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
               <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
               <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
                 {wip === 0 && <span className="text-orange-900 text-[9px] italic">pusty blat</span>}
-                {[...Array(Math.min(wip, 8))].map((_, i) => (
+                {[...Array(Math.min(wip, 12))].map((_, i) => (
                   <div key={i} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${wip >= 4 ? 'border-orange-400 bg-orange-900 animate-pulse' : 'border-orange-700 bg-orange-950'}`}>🫓</div>
                 ))}
                 {wip > 8 && <span className="text-orange-400 text-[9px] font-bold">+{wip-8}</span>}
