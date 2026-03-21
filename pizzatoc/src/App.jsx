@@ -42,6 +42,9 @@ const createAudio = () => {
     tap:    () => play(900, 'sine', 0.06, 0.05),
     pizza:  () => { [523, 659, 784].forEach((f, i) => play(f, 'sine', 0.1, 0.15, i * 0.07)); },
     baked:  () => { [440, 554, 659, 880].forEach((f, i) => play(f, 'sine', 0.08, 0.12, i * 0.055)); },
+    whoosh: () => { play(180, 'sine', 0.07, 0.12); play(520, 'sine', 0.04, 0.1, 0.04); },
+    ching:  () => { play(1046, 'triangle', 0.15, 0.35); play(1568, 'triangle', 0.12, 0.45, 0.06); play(2093, 'triangle', 0.08, 0.55, 0.12); },
+    plop:   () => play(280, 'sine', 0.08, 0.08),
     outage: () => {
       try {
         const c = ac(), o = c.createOscillator(), g = c.createGain();
@@ -61,18 +64,27 @@ const audio = createAudio();
 
 // ─── OVEN SVG ─────────────────────────────────────────────────────────────────
 const OvenSVG = ({ active, progress, pizzaPhase }) => {
-  const archColor   = active ? '#f97316' : '#334155';
-  const insideFill  = active ? '#0a0500' : '#050d1a';
+  const archColor    = active ? '#f97316' : '#334155';
+  const insideFill   = active ? '#0a0500' : '#050d1a';
   const insideStroke = active ? '#f97316' : '#334155';
-  const floorFill   = active ? '#1a0800' : '#0a1120';
-  const floorStroke = active ? '#c2410c' : '#334155';
-  const lblColor    = active ? '#f97316' : '#475569';
-  const progWidth   = progress * 74;
+  const floorFill    = active ? '#1a0800' : '#0a1120';
+  const floorStroke  = active ? '#c2410c' : '#334155';
+  const lblColor     = active ? '#f97316' : '#475569';
+  const progWidth    = progress * 74;
 
-  const pizzaX = pizzaPhase === 'enter' ? 20
-               : pizzaPhase === 'exit'  ? 90
+  // 🫓 wjeżdża surowa, 🍕 wyjeżdża gotowa
+  const pizzaEmoji = pizzaPhase === 'exit' ? '🍕' : '🫓';
+
+  // pozycja X: enter=lewa krawędź, exit=prawa krawędź, baking=środek
+  const pizzaX = pizzaPhase === 'enter' ? 22
+               : pizzaPhase === 'exit'  ? 88
                : 55;
   const pizzaOpacity = pizzaPhase === 'hidden' ? 0 : 1;
+
+  // styl animacji wjazdu/wyjazdu
+  let pizzaStyle = { transition: 'opacity 0.3s' };
+  if (pizzaPhase === 'enter') pizzaStyle = { animation: 'ovenEnter 0.4s ease-out forwards' };
+  if (pizzaPhase === 'exit')  pizzaStyle = { animation: 'ovenExit 0.5s ease-in forwards' };
 
   return (
     <svg viewBox="0 0 110 122" width="110" height="122" xmlns="http://www.w3.org/2000/svg">
@@ -81,64 +93,52 @@ const OvenSVG = ({ active, progress, pizzaPhase }) => {
           <stop offset="0%" stopColor="#f97316" stopOpacity="0.45"/>
           <stop offset="100%" stopColor="#020617" stopOpacity="0"/>
         </radialGradient>
+        <style>{`
+          @keyframes ovenEnter { from { transform: translateX(-30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+          @keyframes ovenExit  { from { transform: translateX(0); opacity: 1; } to { transform: translateX(30px); opacity: 0; } }
+        `}</style>
       </defs>
 
       {active && <ellipse cx="55" cy="68" rx="46" ry="34" fill="url(#og)"/>}
 
-      {/* arch */}
       <path d="M 8 88 Q 8 12 55 12 Q 102 12 102 88"
         fill="none" stroke={archColor} strokeWidth="13" strokeLinecap="round" strokeDasharray="16 3"/>
-      {/* inside */}
       <path d="M 18 88 Q 18 26 55 26 Q 92 26 92 88"
         fill={insideFill} stroke={insideStroke} strokeWidth="2"/>
-      {/* floor */}
       <rect x="18" y="81" width="74" height="9" rx="3" fill={floorFill} stroke={floorStroke} strokeWidth="1.5"/>
 
-      {/* pizza */}
       <text x={pizzaX} y="60" textAnchor="middle" dominantBaseline="central"
-        fontSize="26" opacity={pizzaOpacity}
-        style={{ transition: 'x 0.4s ease, opacity 0.3s' }}>🍕</text>
+        fontSize="26" opacity={pizzaOpacity} style={pizzaStyle}>
+        {pizzaEmoji}
+      </text>
 
-      {/* idle label */}
       {!active && (
         <text x="55" y="56" textAnchor="middle" fontFamily="sans-serif"
           fontSize="9" fill="#334155" fontWeight="600">PUSTY</text>
       )}
 
-      {/* bottom label */}
       <text x="55" y="101" textAnchor="middle" fontFamily="sans-serif"
         fontSize="7.5" fontWeight="700" fill={lblColor} letterSpacing="0.5">WĄSKIE GARDŁO</text>
 
-      {/* progress bar */}
       <rect x="18" y="109" width="74" height="4" rx="2" fill="#1e293b"/>
       {active && <rect x="18" y="109" width={progWidth} height="4" rx="2" fill="#f97316"/>}
     </svg>
   );
 };
 
-// ─── TRAFFIC LIGHT (mini, poziomy) ───────────────────────────────────────────
+// ─── TRAFFIC LIGHT MINI ───────────────────────────────────────────────────────
 const TrafficLightMini = ({ ovenActive }) => (
   <div style={{ display: 'flex', gap: 5, marginBottom: 4, justifyContent: 'center' }}>
-    <div style={{
-      width: 10, height: 10, borderRadius: '50%',
-      background: !ovenActive ? '#22c55e' : '#1e293b',
-      boxShadow: !ovenActive ? '0 0 8px rgba(74,222,128,0.9)' : 'none',
-      transition: 'all 0.3s'
-    }}/>
-    <div style={{
-      width: 10, height: 10, borderRadius: '50%',
-      background: ovenActive ? '#ef4444' : '#1e293b',
-      boxShadow: ovenActive ? '0 0 8px rgba(239,68,68,0.9)' : 'none',
-      transition: 'all 0.3s'
-    }}/>
+    <div style={{ width: 10, height: 10, borderRadius: '50%', background: !ovenActive ? '#22c55e' : '#1e293b', boxShadow: !ovenActive ? '0 0 8px rgba(74,222,128,0.9)' : 'none', transition: 'all 0.3s' }}/>
+    <div style={{ width: 10, height: 10, borderRadius: '50%', background: ovenActive ? '#ef4444' : '#1e293b', boxShadow: ovenActive ? '0 0 8px rgba(239,68,68,0.9)' : 'none', transition: 'all 0.3s' }}/>
   </div>
 );
 
 // ─── WIP PIZZA ITEM ───────────────────────────────────────────────────────────
 const WipPizzaItem = ({ index, showPenalty }) => {
-  const [phase, setPhase]       = useState('alive');
-  const [showNum, setShowNum]   = useState(false);
-  const triggered               = useRef(false);
+  const [phase, setPhase]     = useState('alive');
+  const [showNum, setShowNum] = useState(false);
+  const triggered             = useRef(false);
 
   useEffect(() => {
     if (!showPenalty || triggered.current) return;
@@ -161,9 +161,7 @@ const WipPizzaItem = ({ index, showPenalty }) => {
       </div>
       {showNum && (
         <div className="absolute text-red-400 font-black text-xs pointer-events-none select-none"
-          style={{ top: 0, left: '50%', transform: 'translateX(-50%)',
-            animation: 'floatPenalty 1.4s ease-out forwards', whiteSpace: 'nowrap',
-            textShadow: '0 0 8px rgba(239,68,68,0.8)', zIndex: 10 }}>
+          style={{ top: 0, left: '50%', transform: 'translateX(-50%)', animation: 'floatPenalty 1.4s ease-out forwards', whiteSpace: 'nowrap', textShadow: '0 0 8px rgba(239,68,68,0.8)', zIndex: 10 }}>
           -$30
         </div>
       )}
@@ -173,9 +171,9 @@ const WipPizzaItem = ({ index, showPenalty }) => {
 
 // ─── OUTAGE SCREEN ────────────────────────────────────────────────────────────
 const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
-  const [locked, setLocked]         = useState(true);
-  const [countdown, setCountdown]   = useState(3);
-  const [flash, setFlash]           = useState(true);
+  const [locked, setLocked]           = useState(true);
+  const [countdown, setCountdown]     = useState(3);
+  const [flash, setFlash]             = useState(true);
   const [showPenalty, setShowPenalty] = useState(false);
   const wipCount = useRef(wip);
 
@@ -481,34 +479,33 @@ const AttemptResult = ({ result, attempt, onNext, isLast }) => {
 
 // ─── GAME SCREEN ──────────────────────────────────────────────────────────────
 const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
-  const [timeLeft,    setTimeLeft]    = useState(GAME_DURATION);
-  const [balance,     setBalance]     = useState(0);
-  const [taps,        setTaps]        = useState(0);
-  const [wip,         setWip]         = useState(0);
-  const [ovenActive,  setOvenActive]  = useState(false);
+  const [timeLeft,     setTimeLeft]    = useState(GAME_DURATION);
+  const [balance,      setBalance]     = useState(0);
+  const [taps,         setTaps]        = useState(0);
+  const [wip,          setWip]         = useState(0);
+  const [ovenActive,   setOvenActive]  = useState(false);
   const [ovenProgress, setOvenProgress] = useState(0);
-  const [pizzaPhase,  setPizzaPhase]  = useState('hidden');
-  const [baked,       setBaked]       = useState(0);
-  const [powerOutage, setPowerOutage] = useState(false);
-  const [showOutage,  setShowOutage]  = useState(false);
+  const [pizzaPhase,   setPizzaPhase]  = useState('hidden');
+  const [baked,        setBaked]       = useState(0);
+  const [powerOutage,  setPowerOutage] = useState(false);
+  const [showOutage,   setShowOutage]  = useState(false);
 
-  const balanceRef   = useRef(0);
-  const wipRef       = useRef(0);
-  const bakedRef     = useRef(0);
-  const maxCpsRef    = useRef(0);
-  const totalTapsRef = useRef(0);
-  const tapTimes     = useRef([]);
-  const finishedRef  = useRef(false);
-  const outageRef    = useRef(false);
-  const lastTapRef   = useRef(0);
-  const ovenTimerRef = useRef(null);
+  const balanceRef      = useRef(0);
+  const wipRef          = useRef(0);
+  const bakedRef        = useRef(0);
+  const maxCpsRef       = useRef(0);
+  const totalTapsRef    = useRef(0);
+  const tapTimes        = useRef([]);
+  const finishedRef     = useRef(false);
+  const outageRef       = useRef(false);
+  const lastTapRef      = useRef(0);
+  const ovenTimerRef    = useRef(null);
   const progIntervalRef = useRef(null);
 
   const updBalance = (v) => { balanceRef.current = v; setBalance(v); };
   const updWip     = (v) => { wipRef.current = v;     setWip(v); };
   const updBaked   = (v) => { bakedRef.current = v;   setBaked(v); };
 
-  // CPS tracker (dla maxCps w raporcie)
   useEffect(() => {
     const id = setInterval(() => {
       const now = Date.now();
@@ -525,10 +522,13 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     if (wipRef.current > 0) {
       updWip(wipRef.current - 1);
       setOvenActive(true);
+
+      // FAZA 1: surowa 🫓 wjeżdża z lewej
       setPizzaPhase('enter');
+      audio.whoosh();
       setTimeout(() => setPizzaPhase('baking'), 400);
 
-      // progress bar
+      // pasek postępu
       let prog = 0;
       setOvenProgress(0);
       progIntervalRef.current = setInterval(() => {
@@ -538,18 +538,25 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
       ovenTimerRef.current = setTimeout(() => {
         clearInterval(progIntervalRef.current);
+
+        // FAZA 2: gotowa 🍕 wyjeżdża w prawo
         setPizzaPhase('exit');
+        audio.ching();
+
         setTimeout(() => {
+          // FAZA 3: piec pusty — pauza
           setPizzaPhase('hidden');
           setOvenActive(false);
           setOvenProgress(0);
           const nb = bakedRef.current + 1;
           updBaked(nb);
           updBalance(balanceRef.current + PIZZA_VAL);
-          audio.baked();
+          audio.plop();
           vibrate([50, 30, 50]);
-          runOven.current();
-        }, 400);
+
+          // FAZA 4: następna pizza po krótkiej pauzie
+          setTimeout(() => runOven.current(), 300);
+        }, 500);
       }, OVEN_MS);
     } else {
       ovenTimerRef.current = setTimeout(() => runOven.current(), 100);
@@ -623,7 +630,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
   const isOutage = timeLeft <= OUTAGE_START;
 
-  // Ring segments
   const segments = Array.from({ length: TAPS_PER_PIZZA }, (_, i) => {
     const r = 68, ri = 52, gap = 4;
     const a1 = (i * 36 - 90) * Math.PI / 180;
@@ -662,29 +668,25 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
         </div>
       ) : (
         <>
-          {/* FLOW ROW: WIP | PIEC | GOTOWE */}
+          {/* FLOW: WIP | PIEC | GOTOWE */}
           <div className="flex items-center gap-2">
-
-            {/* WIP SUROWE */}
             <div className="flex-1 bg-orange-950 border border-orange-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
               <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
               <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
                 {wip === 0 && <span className="text-orange-900 text-[9px] italic">pusty blat</span>}
                 {[...Array(Math.min(wip, 8))].map((_, i) => (
-                  <div key={i} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${wip >= 4 ? 'border-orange-400 bg-orange-900 animate-pulse' : 'border-orange-700 bg-orange-950'}`}>🍕</div>
+                  <div key={i} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${wip >= 4 ? 'border-orange-400 bg-orange-900 animate-pulse' : 'border-orange-700 bg-orange-950'}`}>🫓</div>
                 ))}
                 {wip > 8 && <span className="text-orange-400 text-[9px] font-bold">+{wip-8}</span>}
               </div>
               <span className="text-[8px] text-orange-800">{wip} szt.</span>
             </div>
 
-            {/* PIEC SVG */}
             <div className="flex flex-col items-center flex-shrink-0">
               {showTrafficLight && <TrafficLightMini ovenActive={ovenActive}/>}
               <OvenSVG active={ovenActive} progress={ovenProgress} pizzaPhase={pizzaPhase}/>
             </div>
 
-            {/* GOTOWE */}
             <div className="flex-1 bg-green-950 border border-green-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
               <span className="text-[7px] text-green-800 uppercase tracking-widest font-bold">⬤ Gotowe</span>
               <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
@@ -696,8 +698,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
               </div>
               <span className="text-[8px] text-green-800">{baked} szt.</span>
             </div>
-
           </div>
+
+          {/* PLACEHOLDER — TOC PRO panel */}
+          <div style={{ height: 120 }} />
 
           {/* RING + PRZYCISK */}
           <div className="flex flex-col items-center gap-1 mt-1">
@@ -731,10 +735,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
-  const [phase,          setPhase]          = useState('START');
-  const [attempt,        setAttempt]        = useState(1);
-  const [history,        setHistory]        = useState([]);
-  const [lastResult,     setLastResult]     = useState(null);
+  const [phase,      setPhase]      = useState('START');
+  const [attempt,    setAttempt]    = useState(1);
+  const [history,    setHistory]    = useState([]);
+  const [lastResult, setLastResult] = useState(null);
   const MAX_ATTEMPTS = 3;
 
   const handleFinish = (result) => {
@@ -748,24 +752,40 @@ export default function PizzaTOC() {
   const handleRestart = () => { setPhase('START'); setAttempt(1); setHistory([]); setLastResult(null); };
 
   if (phase === 'START') return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6 text-center">
-      <div className="text-7xl mb-4 animate-bounce">🍕</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">PIZZERIA TOC</h1>
-      <p className="text-slate-400 max-w-sm mb-3 leading-relaxed text-sm">
-        <strong className="text-white">3 próby</strong> × 30 sekund.<br/>
-        20s produkcja · 10s <span className="text-red-400 font-bold">awaria prądu</span><br/>
-        WIP podczas awarii = strata!
-      </p>
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 max-w-xs mb-7 text-xs text-slate-500 text-left space-y-1.5">
-        <p>• 10 tapów → 1 pizza na blat (WIP)</p>
-        <p>• Piec: 1 pizza co 3s → <strong className="text-orange-400">+$100</strong></p>
-        <p>• Awaria: WIP = <strong className="text-red-400">-${PENALTY_RATE}/szt/s</strong></p>
-        <p>• Próba 2: sygnalizator pieca 🚦</p>
+    <div className="min-h-screen flex flex-col items-center justify-center text-white p-6 text-center"
+      style={{ background: 'radial-gradient(ellipse at top, #1a1040 0%, #020617 60%)' }}>
+      <div className="text-7xl mb-4" style={{ animation: 'bounce 1s infinite' }}>🍕</div>
+      <h1 className="font-black mb-2 leading-tight uppercase"
+        style={{ fontSize: 32, background: 'linear-gradient(135deg,#f97316,#facc15)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        ZARÓB JAK NAJWIĘCEJ<br/>W 30 SEKUND!
+      </h1>
+      <p className="text-slate-400 mb-6 text-sm italic">(Ale uważaj na przerwy w dostawie prądu...)</p>
+      <div className="w-full max-w-xs mb-8 text-left space-y-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0">👨‍🍳</span>
+          <p className="text-sm text-slate-200 leading-relaxed">
+            <strong className="text-white">Tapuj szybko</strong>, by przygotować pizzę na blat. Piec nie może czekać!
+          </p>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0">🔥</span>
+          <p className="text-sm text-slate-200 leading-relaxed">
+            <strong className="text-white">Piec</strong> piecze jedną pizzę co 3 sekundy.
+          </p>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0">⚡</span>
+          <p className="text-sm text-slate-200 leading-relaxed">
+            <strong className="text-yellow-400">AWARYJNE WYŁĄCZENIE:</strong> Gdy zgaśnie światło, każda pizza na blacie generuje potężne straty!
+          </p>
+        </div>
       </div>
       <button onClick={() => setPhase('PLAYING')}
-        className="bg-orange-500 hover:bg-orange-400 px-12 py-4 rounded-full font-black text-xl transition-colors">
-        START PRÓBA 1
+        className="font-black text-lg text-white px-10 py-4 rounded-2xl transition-all active:scale-95"
+        style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', boxShadow: '0 0 30px rgba(249,115,22,0.5)', letterSpacing: '0.03em' }}>
+        [ START: PRÓBA 1 — SPRAWDŹ SIĘ ]
       </button>
+      <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
     </div>
   );
 
