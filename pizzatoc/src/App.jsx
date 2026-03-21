@@ -1,26 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Pizza, RotateCcw, Trophy, Zap, TrendingDown, ChevronRight, BarChart2, X } from 'lucide-react';
+import { RotateCcw, Trophy, Zap, TrendingDown, ChevronRight, BarChart2, X } from 'lucide-react';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const GAME_DURATION   = 30;
-const OUTAGE_START    = 10;
-const PROD_TIME       = GAME_DURATION - OUTAGE_START;
-const PIZZA_VAL       = 100;
-const PENALTY_RATE    = 30;
-const OVEN_MS         = 3000;
-const TAPS_PER_PIZZA  = 10;
+const GAME_DURATION    = 30;
+const OUTAGE_START     = 10;
+const PROD_TIME        = GAME_DURATION - OUTAGE_START;
+const PIZZA_VAL        = 100;
+const PENALTY_RATE     = 30;
+const OVEN_MS          = 3000;
+const TAPS_PER_PIZZA   = 10;
 const WORLD_RECORD_CPS = 10;
 
-const fmt  = (n) => (n < 0 ? `-$${Math.abs(n)}` : `$${n}`);
-const pct  = (v, max) => Math.round(Math.min(v / max, 1) * 100);
+const fmt = (n) => (n < 0 ? `-$${Math.abs(n)}` : `$${n}`);
+const pct = (v, max) => Math.round(Math.min(v / max, 1) * 100);
 const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
 
 const calcOee = (r) => {
-  const chefOee    = pct(r.maxCps, WORLD_RECORD_CPS);
-  const ovenOee    = pct(r.baked * (OVEN_MS / 1000), PROD_TIME);
-  const maxByChef  = Math.floor((r.totalTaps || 0) / TAPS_PER_PIZZA);
-  const maxByOven  = Math.floor(PROD_TIME / (OVEN_MS / 1000));
-  const lost       = maxByOven - r.baked;
+  const chefOee   = pct(r.maxCps, WORLD_RECORD_CPS);
+  const ovenOee   = pct(r.baked * (OVEN_MS / 1000), PROD_TIME);
+  const maxByChef = Math.floor((r.totalTaps || 0) / TAPS_PER_PIZZA);
+  const maxByOven = Math.floor(PROD_TIME / (OVEN_MS / 1000));
+  const lost      = maxByOven - r.baked;
   return { chefOee, ovenOee, maxByChef, maxByOven, lost };
 };
 
@@ -60,118 +59,111 @@ const createAudio = () => {
 };
 const audio = createAudio();
 
-// ─── DUAL GAUGE ───────────────────────────────────────────────────────────────
-const DualGauge = ({ label, unit, value, maxValue, sessionBest, worldMax, colorFn, size = 120 }) => {
-  const cx = size / 2, cy = size / 2;
-  const rOuter = size * 0.42;
-  const rInner = size * 0.30;
-  const circ   = (r) => 2 * Math.PI * r;
-  const ARC    = 0.75;
-  const offset = (r) => circ(r) * (1 - ARC) / 2;
-  const curPct  = Math.min(value / worldMax, 1);
-  const bestPct = Math.min((sessionBest || 0) / worldMax, 1);
-  const color   = colorFn(curPct);
-  const arc = (r, p) => p * circ(r) * ARC;
-  const pctNum   = Math.round(curPct * 100);
-  const bestPctN = Math.round(bestPct * 100);
+// ─── OVEN SVG ─────────────────────────────────────────────────────────────────
+const OvenSVG = ({ active, progress, pizzaPhase }) => {
+  const archColor   = active ? '#f97316' : '#334155';
+  const insideFill  = active ? '#0a0500' : '#050d1a';
+  const insideStroke = active ? '#f97316' : '#334155';
+  const floorFill   = active ? '#1a0800' : '#0a1120';
+  const floorStroke = active ? '#c2410c' : '#334155';
+  const lblColor    = active ? '#f97316' : '#475569';
+  const progWidth   = progress * 74;
+
+  const pizzaX = pizzaPhase === 'enter' ? 20
+               : pizzaPhase === 'exit'  ? 90
+               : 55;
+  const pizzaOpacity = pizzaPhase === 'hidden' ? 0 : 1;
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(135deg)' }}>
-          <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="#1e293b" strokeWidth={size * 0.055}
-            strokeDasharray={`${circ(rOuter) * ARC} ${circ(rOuter)}`} strokeDashoffset={-offset(rOuter)} strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="#1e293b" strokeWidth={size * 0.07}
-            strokeDasharray={`${circ(rInner) * ARC} ${circ(rInner)}`} strokeDashoffset={-offset(rInner)} strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r={rOuter} fill="none" stroke="#475569" strokeWidth={size * 0.045}
-            strokeDasharray={`${arc(rOuter, bestPct)} ${circ(rOuter)}`} strokeDashoffset={-offset(rOuter)} strokeLinecap="round"
-            style={{ transition: 'stroke-dasharray 0.3s' }} />
-          <circle cx={cx} cy={cy} r={rInner} fill="none" stroke={color} strokeWidth={size * 0.07}
-            strokeDasharray={`${arc(rInner, curPct)} ${circ(rInner)}`} strokeDashoffset={-offset(rInner)} strokeLinecap="round"
-            style={{ transition: 'stroke-dasharray 0.12s, stroke 0.3s' }} />
-        </svg>
-        <div className="absolute flex flex-col items-center leading-none text-center">
-          <span className="font-black leading-none" style={{ fontSize: size * 0.19, color }}>{pctNum}%</span>
-          <span style={{ fontSize: size * 0.09 }} className="text-slate-500 mt-0.5">{value}{unit}</span>
-          {bestPctN > 0 && bestPctN !== pctNum && (
-            <span style={{ fontSize: size * 0.08 }} className="text-slate-600 mt-0.5">↑{bestPctN}%</span>
-          )}
-        </div>
-      </div>
-      <p className="text-[9px] text-slate-500 uppercase tracking-widest">{label}</p>
-    </div>
+    <svg viewBox="0 0 110 122" width="110" height="122" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="og" cx="50%" cy="55%" r="50%">
+          <stop offset="0%" stopColor="#f97316" stopOpacity="0.45"/>
+          <stop offset="100%" stopColor="#020617" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+
+      {active && <ellipse cx="55" cy="68" rx="46" ry="34" fill="url(#og)"/>}
+
+      {/* arch */}
+      <path d="M 8 88 Q 8 12 55 12 Q 102 12 102 88"
+        fill="none" stroke={archColor} strokeWidth="13" strokeLinecap="round" strokeDasharray="16 3"/>
+      {/* inside */}
+      <path d="M 18 88 Q 18 26 55 26 Q 92 26 92 88"
+        fill={insideFill} stroke={insideStroke} strokeWidth="2"/>
+      {/* floor */}
+      <rect x="18" y="81" width="74" height="9" rx="3" fill={floorFill} stroke={floorStroke} strokeWidth="1.5"/>
+
+      {/* pizza */}
+      <text x={pizzaX} y="60" textAnchor="middle" dominantBaseline="central"
+        fontSize="26" opacity={pizzaOpacity}
+        style={{ transition: 'x 0.4s ease, opacity 0.3s' }}>🍕</text>
+
+      {/* idle label */}
+      {!active && (
+        <text x="55" y="56" textAnchor="middle" fontFamily="sans-serif"
+          fontSize="9" fill="#334155" fontWeight="600">PUSTY</text>
+      )}
+
+      {/* bottom label */}
+      <text x="55" y="101" textAnchor="middle" fontFamily="sans-serif"
+        fontSize="7.5" fontWeight="700" fill={lblColor} letterSpacing="0.5">WĄSKIE GARDŁO</text>
+
+      {/* progress bar */}
+      <rect x="18" y="109" width="74" height="4" rx="2" fill="#1e293b"/>
+      {active && <rect x="18" y="109" width={progWidth} height="4" rx="2" fill="#f97316"/>}
+    </svg>
   );
 };
 
-// ─── TRAFFIC LIGHT ────────────────────────────────────────────────────────────
-const TrafficLight = ({ ovenActive, powerOutage }) => (
-  <div className="flex flex-col items-center gap-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-xl flex-shrink-0">
-    <div className={`w-7 h-7 rounded-full border-2 transition-all duration-300 ${
-      !powerOutage && !ovenActive ? 'bg-green-400 border-green-300 shadow-[0_0_14px_3px_rgba(74,222,128,0.7)]' : 'bg-slate-800 border-slate-700 opacity-20'}`} />
-    <div className={`w-7 h-7 rounded-full border-2 transition-all duration-300 ${
-      powerOutage || ovenActive ? 'bg-red-500 border-red-300 shadow-[0_0_14px_3px_rgba(239,68,68,0.8)]' : 'bg-slate-800 border-slate-700 opacity-20'}`} />
-    <span className="text-[7px] text-slate-700 uppercase tracking-widest mt-0.5">PIEC</span>
+// ─── TRAFFIC LIGHT (mini, poziomy) ───────────────────────────────────────────
+const TrafficLightMini = ({ ovenActive }) => (
+  <div style={{ display: 'flex', gap: 5, marginBottom: 4, justifyContent: 'center' }}>
+    <div style={{
+      width: 10, height: 10, borderRadius: '50%',
+      background: !ovenActive ? '#22c55e' : '#1e293b',
+      boxShadow: !ovenActive ? '0 0 8px rgba(74,222,128,0.9)' : 'none',
+      transition: 'all 0.3s'
+    }}/>
+    <div style={{
+      width: 10, height: 10, borderRadius: '50%',
+      background: ovenActive ? '#ef4444' : '#1e293b',
+      boxShadow: ovenActive ? '0 0 8px rgba(239,68,68,0.9)' : 'none',
+      transition: 'all 0.3s'
+    }}/>
   </div>
 );
 
-// ─── WIP PIZZA ITEM (z animacją kary) ────────────────────────────────────────
+// ─── WIP PIZZA ITEM ───────────────────────────────────────────────────────────
 const WipPizzaItem = ({ index, showPenalty }) => {
-  const [phase, setPhase] = useState('alive'); // 'alive' | 'dying' | 'dead'
-  const [showNumber, setShowNumber] = useState(false);
-  const triggered = useRef(false);
+  const [phase, setPhase]       = useState('alive');
+  const [showNum, setShowNum]   = useState(false);
+  const triggered               = useRef(false);
 
   useEffect(() => {
     if (!showPenalty || triggered.current) return;
     triggered.current = true;
     const delay = index * 150;
-
-    // Start dying animation
-    const t1 = setTimeout(() => {
-      setPhase('dying');
-      setShowNumber(true);
-    }, delay);
-
-    // Turn to skull
-    const t2 = setTimeout(() => {
-      setPhase('dead');
-    }, delay + 900);
-
-    // Hide floating number
-    const t3 = setTimeout(() => {
-      setShowNumber(false);
-    }, delay + 1400);
-
+    const t1 = setTimeout(() => { setPhase('dying'); setShowNum(true); }, delay);
+    const t2 = setTimeout(() => setPhase('dead'), delay + 900);
+    const t3 = setTimeout(() => setShowNum(false), delay + 1400);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [showPenalty, index]);
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 32, height: 32 }}>
-      {/* Pizza / Skull */}
-      <div
-        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm transition-all
-          ${phase === 'alive'  ? 'bg-orange-900 border-orange-700' : ''}
-          ${phase === 'dying'  ? 'bg-red-950 border-red-800 wip-dying' : ''}
-          ${phase === 'dead'   ? 'bg-slate-900 border-slate-700' : ''}
-        `}
-        style={phase === 'dying' ? { animation: 'wipDie 0.9s ease-in forwards' } : {}}
-      >
+      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm transition-all
+        ${phase === 'alive' ? 'bg-orange-900 border-orange-700' : ''}
+        ${phase === 'dying' ? 'bg-red-950 border-red-800' : ''}
+        ${phase === 'dead'  ? 'bg-slate-900 border-slate-700' : ''}`}
+        style={phase === 'dying' ? { animation: 'wipDie 0.9s ease-in forwards' } : {}}>
         {phase === 'dead' ? '💀' : '🍕'}
       </div>
-
-      {/* Floating -$30 */}
-      {showNumber && (
-        <div
-          className="absolute text-red-400 font-black text-xs pointer-events-none select-none"
-          style={{
-            top: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            animation: 'floatPenalty 1.4s ease-out forwards',
-            whiteSpace: 'nowrap',
-            textShadow: '0 0 8px rgba(239,68,68,0.8)',
-            zIndex: 10,
-          }}
-        >
+      {showNum && (
+        <div className="absolute text-red-400 font-black text-xs pointer-events-none select-none"
+          style={{ top: 0, left: '50%', transform: 'translateX(-50%)',
+            animation: 'floatPenalty 1.4s ease-out forwards', whiteSpace: 'nowrap',
+            textShadow: '0 0 8px rgba(239,68,68,0.8)', zIndex: 10 }}>
           -$30
         </div>
       )}
@@ -181,18 +173,17 @@ const WipPizzaItem = ({ index, showPenalty }) => {
 
 // ─── OUTAGE SCREEN ────────────────────────────────────────────────────────────
 const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
-  const [locked, setLocked]       = useState(true);
-  const [countdown, setCountdown] = useState(3);
-  const [flash, setFlash]         = useState(true);
+  const [locked, setLocked]         = useState(true);
+  const [countdown, setCountdown]   = useState(3);
+  const [flash, setFlash]           = useState(true);
   const [showPenalty, setShowPenalty] = useState(false);
-  const wipCount = useRef(wip); // freeze WIP count at outage start
+  const wipCount = useRef(wip);
 
   useEffect(() => {
     const timers = [
       setTimeout(() => setFlash(false), 160),
       setTimeout(() => setFlash(true),  320),
       setTimeout(() => setFlash(false), 480),
-      // Start penalty cascade shortly after flash
       setTimeout(() => setShowPenalty(true), 300),
     ];
     return () => timers.forEach(clearTimeout);
@@ -212,27 +203,24 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
     <div onClick={!locked ? onUnlock : undefined}
       className="flex flex-col items-center justify-center py-6 gap-4 text-center"
       style={{ cursor: locked ? 'default' : 'pointer' }}>
-      {flash && <div className="fixed inset-0 bg-red-600 opacity-50 pointer-events-none z-50" />}
-      <Zap size={60} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }} />
+      {flash && <div className="fixed inset-0 bg-red-600 opacity-50 pointer-events-none z-50"/>}
+      <Zap size={60} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }}/>
       <h2 className="text-4xl font-black text-red-500">AWARIA PRĄDU!</h2>
       {wipCount.current > 0 && (
         <div className="bg-red-950 border border-red-800 rounded-2xl px-6 py-3">
-          <div className="flex items-center gap-2 text-red-400 text-2xl font-black animate-pulse">
-            <TrendingDown size={55} /> ${wipCount.current * PENALTY_RATE} $
+          <div className="flex items-center gap-2 text-red-400 text-xl font-black animate-pulse">
+            <TrendingDown size={20}/> -${wipCount.current * PENALTY_RATE}$
           </div>
           <p className="text-red-700 text-xs mt-1">{wipCount.current} WIP × ${PENALTY_RATE}</p>
         </div>
       )}
-
-      {/* WIP blat z animowanymi pizzami */}
       {count > 0 && (
         <div className="flex flex-wrap justify-center gap-2 max-w-xs">
           {[...Array(count)].map((_, i) => (
-            <WipPizzaItem key={i} index={i} showPenalty={showPenalty} />
+            <WipPizzaItem key={i} index={i} showPenalty={showPenalty}/>
           ))}
         </div>
       )}
-
       <div className="mt-4">
         {locked
           ? <div className="flex flex-col items-center gap-1">
@@ -252,7 +240,6 @@ const OutageScreen = ({ wip, onUnlock, timeLeft }) => {
 
 // ─── OEE HELPERS ─────────────────────────────────────────────────────────────
 const MAX_BY_OVEN = Math.floor(PROD_TIME / (OVEN_MS / 1000));
-
 const oeeGrade = (p) => {
   if (p >= 85) return { bg: '#0a1f10', border: '#1a4a25', text: '#4ade80', desc: '#86c898', sub: '#4ade8088' };
   if (p >= 60) return { bg: '#1a1800', border: '#3a3500', text: '#facc15', desc: '#c4a832', sub: '#facc1588' };
@@ -277,24 +264,18 @@ const OeePanel = ({ r }) => {
       </div>
       <div style={{ padding: '14px 14px 0' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <div style={tileStyle(ca)}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: ca.text, marginBottom: 6 }}>Dostępność</div>
-            <div style={{ fontSize: 30, fontWeight: 500, color: ca.text, lineHeight: 1, marginBottom: 6 }}>{avail}%</div>
-            <div style={{ fontSize: 11, color: ca.desc, lineHeight: 1.4 }}>20s z 30s<br/>piec mógł pracować</div>
-            <div style={{ fontSize: 10, color: '#f87171', marginTop: 4 }}>10s = awaria prądu</div>
-          </div>
-          <div style={tileStyle(cp)}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: cp.text, marginBottom: 6 }}>Wydajność</div>
-            <div style={{ fontSize: 30, fontWeight: 500, color: cp.text, lineHeight: 1, marginBottom: 6 }}>{perf}%</div>
-            <div style={{ fontSize: 11, color: cp.desc, lineHeight: 1.4 }}>{r.baked} z {MAX_BY_OVEN} możliwych<br/>cykli pieca</div>
-            <div style={{ fontSize: 10, color: cp.sub, marginTop: 4 }}>max = floor(20÷3) = {MAX_BY_OVEN}</div>
-          </div>
-          <div style={tileStyle(cq)}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: cq.text, marginBottom: 6 }}>Jakość</div>
-            <div style={{ fontSize: 30, fontWeight: 500, color: cq.text, lineHeight: 1, marginBottom: 6 }}>{qual}%</div>
-            <div style={{ fontSize: 11, color: cq.desc, lineHeight: 1.4 }}>{r.baked} dobrych z {total}<br/>wyprodukowanych</div>
-            <div style={{ fontSize: 10, color: '#f87171', marginTop: 4 }}>{r.wipAtEnd} WIP = NOK (scrap)</div>
-          </div>
+          {[
+            { label: 'Dostępność', val: `${avail}%`, c: ca, d1: '20s z 30s\npiec mógł pracować', d2: '10s = awaria prądu', d2c: '#f87171' },
+            { label: 'Wydajność',  val: `${perf}%`,  c: cp, d1: `${r.baked} z ${MAX_BY_OVEN} możliwych\ncykli pieca`, d2: `max = floor(20÷3) = ${MAX_BY_OVEN}`, d2c: cp.sub },
+            { label: 'Jakość',     val: `${qual}%`,  c: cq, d1: `${r.baked} dobrych z ${total}\nwyprodukowanych`, d2: `${r.wipAtEnd} WIP = NOK (scrap)`, d2c: '#f87171' },
+          ].map(({ label, val, c, d1, d2, d2c }) => (
+            <div key={label} style={tileStyle(c)}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', color: c.text, marginBottom: 6 }}>{label}</div>
+              <div style={{ fontSize: 30, fontWeight: 500, color: c.text, lineHeight: 1, marginBottom: 6 }}>{val}</div>
+              <div style={{ fontSize: 11, color: c.desc, lineHeight: 1.4, whiteSpace: 'pre-line' }}>{d1}</div>
+              <div style={{ fontSize: 10, color: d2c, marginTop: 4 }}>{d2}</div>
+            </div>
+          ))}
         </div>
         <div style={{ background: cr.bg, border: `1px solid ${cr.border}`, borderRadius: 10, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
@@ -316,13 +297,13 @@ const OeePanel = ({ r }) => {
           <p style={{ fontSize: 14, color: '#c8cfe0', lineHeight: 1.65, marginBottom: 12 }}>
             OEE to iloczyn trzech liczb. Każda z nich "<span style={{ color: '#378ADD', fontWeight: 500 }}>zjada</span>" część potencjału. Nawet jeśli dwa składniki są świetne — jeden zły ciągnie całość w dół.
           </p>
-          <div style={{ height: 1, background: '#2a3150', marginBottom: 12 }} />
+          <div style={{ height: 1, background: '#2a3150', marginBottom: 12 }}/>
           <div style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#378ADD', marginBottom: 10 }}>Trzy pytania = trzy składniki</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             {[
-              { icon: '⚡', name: 'Czy działał?', c: ca, lines: [`Czas pracy ÷ czas całkowity`, `20 ÷ 30 = ${avail}%`, 'awaria zabrała 33%'], lc: ['#8890aa', ca.text, '#f87171'] },
-              { icon: '⏱️', name: 'Czy piekł w rytmie?', c: cp, lines: [`Upieczone ÷ max możliwe`, `${r.baked} ÷ ${MAX_BY_OVEN} = ${perf}%`, 'piec bił równo co 3s'], lc: ['#8890aa', cp.text, '#4ade80'] },
-              { icon: '✅', name: 'Czy trafiło do klienta?', c: cq, lines: [`Sprzedane ÷ wszystkie wytworzone`, `${r.baked} ÷ ${total} = ${qual}%`, `${r.wipAtEnd} WIP = scrap`], lc: ['#8890aa', cq.text, '#f87171'] },
+              { icon: '⚡', name: 'Czy działał?', c: ca, lines: ['Czas pracy ÷ czas całkowity', `20 ÷ 30 = ${avail}%`, 'awaria zabrała 33%'], lc: ['#8890aa', ca.text, '#f87171'] },
+              { icon: '⏱️', name: 'Czy piekł w rytmie?', c: cp, lines: ['Upieczone ÷ max możliwe', `${r.baked} ÷ ${MAX_BY_OVEN} = ${perf}%`, 'piec bił równo co 3s'], lc: ['#8890aa', cp.text, '#4ade80'] },
+              { icon: '✅', name: 'Czy trafiło do klienta?', c: cq, lines: ['Sprzedane ÷ wszystkie wytworzone', `${r.baked} ÷ ${total} = ${qual}%`, `${r.wipAtEnd} WIP = scrap`], lc: ['#8890aa', cq.text, '#f87171'] },
             ].map(({ icon, name, c, lines, lc }) => (
               <div key={name} style={{ flex: 1, background: '#141928', border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px 8px', textAlign: 'center' }}>
                 <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
@@ -334,12 +315,9 @@ const OeePanel = ({ r }) => {
           <div style={{ background: '#0e1525', borderRadius: 10, padding: '12px 14px' }}>
             <div style={{ fontSize: 10, color: '#8890aa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Wzór krok po kroku</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 14, fontWeight: 500 }}>
-              <span style={{ color: ca.text }}>{avail}%</span>
-              <span style={{ color: '#4a5270' }}>×</span>
-              <span style={{ color: cp.text }}>{perf}%</span>
-              <span style={{ color: '#4a5270' }}>×</span>
-              <span style={{ color: cq.text }}>{qual}%</span>
-              <span style={{ color: '#4a5270' }}>=</span>
+              <span style={{ color: ca.text }}>{avail}%</span><span style={{ color: '#4a5270' }}>×</span>
+              <span style={{ color: cp.text }}>{perf}%</span><span style={{ color: '#4a5270' }}>×</span>
+              <span style={{ color: cq.text }}>{qual}%</span><span style={{ color: '#4a5270' }}>=</span>
               <span style={{ color: cr.text, fontSize: 20 }}>{oee}%</span>
               <span style={{ color: '#4a5270', fontSize: 11, marginLeft: 4 }}>OEE pizzerii</span>
             </div>
@@ -353,7 +331,7 @@ const OeePanel = ({ r }) => {
   );
 };
 
-// ─── OEE ANALYSIS MODAL ───────────────────────────────────────────────────────
+// ─── OEE ANALYSIS ────────────────────────────────────────────────────────────
 const OeeAnalysis = ({ history, onClose }) => (
   <div className="fixed inset-0 bg-black/95 z-50 overflow-y-auto">
     <div className="min-h-screen p-5 flex flex-col">
@@ -363,12 +341,10 @@ const OeeAnalysis = ({ history, onClose }) => (
           <p className="text-[10px] text-slate-600 uppercase tracking-widest">Overall Equipment Effectiveness · Pizzeria</p>
         </div>
         <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700">
-          <X size={18} className="text-slate-400" />
+          <X size={18} className="text-slate-400"/>
         </button>
       </div>
-      <div className="space-y-0">
-        {history.map(r => <OeePanel key={r.attempt} r={r} />)}
-      </div>
+      {history.map(r => <OeePanel key={r.attempt} r={r}/>)}
       <button onClick={onClose} className="mt-4 bg-orange-500 hover:bg-orange-400 px-8 py-4 rounded-full font-black text-base transition-colors self-center">
         Zamknij analizę
       </button>
@@ -380,11 +356,10 @@ const OeeAnalysis = ({ history, onClose }) => (
 const ResultsTable = ({ history, onRestart }) => {
   const [showOee, setShowOee] = useState(false);
   const best = [...history].sort((a, b) => b.balance - a.balance)[0];
-
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-5 pb-12">
-      {showOee && <OeeAnalysis history={history} onClose={() => setShowOee(false)} />}
-      <Trophy size={44} className="text-yellow-400 mb-3" />
+      {showOee && <OeeAnalysis history={history} onClose={() => setShowOee(false)}/>}
+      <Trophy size={44} className="text-yellow-400 mb-3"/>
       <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">RAPORT KOŃCOWY</h1>
       <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-6">OEE vs Theory of Constraints</p>
       <div className="w-full max-w-lg space-y-3 mb-6">
@@ -399,9 +374,7 @@ const ResultsTable = ({ history, onRestart }) => {
           return (
             <div key={i} className={`rounded-xl border overflow-hidden ${isBest ? 'border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-800'}`}>
               <div className={`grid grid-cols-5 gap-2 items-center px-3 py-2.5 ${isBest ? 'bg-orange-500/10' : 'bg-slate-900'}`}>
-                <span className="font-bold text-sm flex items-center gap-1">
-                  {isBest && <Trophy size={10} className="text-yellow-400" />}#{r.attempt}
-                </span>
+                <span className="font-bold text-sm flex items-center gap-1">{isBest && <Trophy size={10} className="text-yellow-400"/>}#{r.attempt}</span>
                 <span className={`text-center font-black text-sm ${r.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(r.balance)}</span>
                 <span className="text-center text-blue-400 font-bold text-sm">{r.maxCps}</span>
                 <span className="text-center text-slate-200 text-sm">{r.baked}</span>
@@ -411,14 +384,14 @@ const ResultsTable = ({ history, onRestart }) => {
                 <div className="bg-slate-950 px-3 py-1 flex items-center gap-2">
                   <span className="text-[9px] text-slate-600">Kucharz</span>
                   <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${chefOee}%` }} />
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${chefOee}%` }}/>
                   </div>
                   <span className="text-[9px] text-blue-400 font-bold">{chefOee}%</span>
                 </div>
                 <div className="bg-slate-950 px-3 py-1 flex items-center gap-2">
                   <span className="text-[9px] text-slate-600">Piec</span>
                   <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${ovenOee}%` }} />
+                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${ovenOee}%` }}/>
                   </div>
                   <span className="text-[9px] text-orange-400 font-bold">{ovenOee}%</span>
                 </div>
@@ -455,11 +428,11 @@ const ResultsTable = ({ history, onRestart }) => {
       <div className="flex flex-col gap-3 w-full max-w-sm">
         <button onClick={() => setShowOee(true)}
           className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
-          <BarChart2 size={18} className="text-orange-400" /> Analiza OEE
+          <BarChart2 size={18} className="text-orange-400"/> Analiza OEE
         </button>
         <button onClick={onRestart}
           className="flex items-center justify-center gap-2 bg-white text-black px-8 py-3.5 rounded-full font-black text-base hover:bg-orange-400 transition-colors">
-          <RotateCcw size={16} /> Zagraj ponownie
+          <RotateCcw size={16}/> Zagraj ponownie
         </button>
       </div>
     </div>
@@ -500,75 +473,83 @@ const AttemptResult = ({ result, attempt, onNext, isLast }) => {
       </div>
       <button onClick={onNext}
         className="flex items-center gap-3 bg-orange-500 hover:bg-orange-400 px-10 py-4 rounded-full font-black text-lg transition-colors">
-        {isLast ? <><Trophy size={18} /> Wyniki końcowe</> : <><ChevronRight size={18} /> Próba {attempt + 1}</>}
+        {isLast ? <><Trophy size={18}/> Wyniki końcowe</> : <><ChevronRight size={18}/> Próba {attempt + 1}</>}
       </button>
     </div>
   );
 };
 
 // ─── GAME SCREEN ──────────────────────────────────────────────────────────────
-const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => {
+const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
   const [timeLeft,    setTimeLeft]    = useState(GAME_DURATION);
   const [balance,     setBalance]     = useState(0);
   const [taps,        setTaps]        = useState(0);
   const [wip,         setWip]         = useState(0);
   const [ovenActive,  setOvenActive]  = useState(false);
-  const [cps,         setCps]         = useState(0);
-  const [maxCps,      setMaxCps]      = useState(0);
-  const [ovenOeePct,  setOvenOeePct]  = useState(0);
+  const [ovenProgress, setOvenProgress] = useState(0);
+  const [pizzaPhase,  setPizzaPhase]  = useState('hidden');
   const [baked,       setBaked]       = useState(0);
   const [powerOutage, setPowerOutage] = useState(false);
   const [showOutage,  setShowOutage]  = useState(false);
 
   const balanceRef   = useRef(0);
   const wipRef       = useRef(0);
-  const ovenRef      = useRef(false);
   const bakedRef     = useRef(0);
   const maxCpsRef    = useRef(0);
   const totalTapsRef = useRef(0);
-  const ovenWorkMs   = useRef(0);
   const tapTimes     = useRef([]);
   const finishedRef  = useRef(false);
   const outageRef    = useRef(false);
-  const gameStartRef = useRef(Date.now());
+  const lastTapRef   = useRef(0);
+  const ovenTimerRef = useRef(null);
+  const progIntervalRef = useRef(null);
 
   const updBalance = (v) => { balanceRef.current = v; setBalance(v); };
   const updWip     = (v) => { wipRef.current = v;     setWip(v); };
-  const updOven    = (v) => { ovenRef.current = v;    setOvenActive(v); };
   const updBaked   = (v) => { bakedRef.current = v;   setBaked(v); };
 
+  // CPS tracker (dla maxCps w raporcie)
   useEffect(() => {
     const id = setInterval(() => {
       const now = Date.now();
       tapTimes.current = tapTimes.current.filter(t => now - t < 1000);
       const c = tapTimes.current.length;
-      setCps(c);
-      if (c > maxCpsRef.current) { maxCpsRef.current = c; setMaxCps(c); }
-      const elapsed = Math.min((now - gameStartRef.current) / 1000, PROD_TIME);
-      if (elapsed > 0) {
-        const workSec = bakedRef.current * (OVEN_MS / 1000);
-        setOvenOeePct(Math.round(Math.min(workSec / elapsed, 1) * 100));
-      }
+      if (c > maxCpsRef.current) maxCpsRef.current = c;
     }, 100);
     return () => clearInterval(id);
   }, []);
 
-  const ovenTimerRef = useRef(null);
   const runOven = useRef(null);
   runOven.current = () => {
     if (outageRef.current || finishedRef.current) return;
     if (wipRef.current > 0) {
       updWip(wipRef.current - 1);
-      updOven(true);
+      setOvenActive(true);
+      setPizzaPhase('enter');
+      setTimeout(() => setPizzaPhase('baking'), 400);
+
+      // progress bar
+      let prog = 0;
+      setOvenProgress(0);
+      progIntervalRef.current = setInterval(() => {
+        prog += 50 / OVEN_MS;
+        setOvenProgress(Math.min(prog, 1));
+      }, 50);
+
       ovenTimerRef.current = setTimeout(() => {
-        updOven(false);
-        const nb = bakedRef.current + 1;
-        updBaked(nb);
-        updBalance(balanceRef.current + PIZZA_VAL);
-        ovenWorkMs.current += OVEN_MS;
-        audio.baked();
-        vibrate([50, 30, 50]);
-        runOven.current();
+        clearInterval(progIntervalRef.current);
+        setPizzaPhase('exit');
+        setTimeout(() => {
+          setPizzaPhase('hidden');
+          setOvenActive(false);
+          setOvenProgress(0);
+          const nb = bakedRef.current + 1;
+          updBaked(nb);
+          updBalance(balanceRef.current + PIZZA_VAL);
+          audio.baked();
+          vibrate([50, 30, 50]);
+          runOven.current();
+        }, 400);
       }, OVEN_MS);
     } else {
       ovenTimerRef.current = setTimeout(() => runOven.current(), 100);
@@ -578,7 +559,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
   useEffect(() => {
     if (outageRef.current) return;
     runOven.current();
-    return () => { if (ovenTimerRef.current) clearTimeout(ovenTimerRef.current); };
+    return () => {
+      if (ovenTimerRef.current) clearTimeout(ovenTimerRef.current);
+      if (progIntervalRef.current) clearInterval(progIntervalRef.current);
+    };
   }, [powerOutage]);
 
   useEffect(() => {
@@ -620,9 +604,12 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
 
   const handleTap = useCallback(() => {
     if (outageRef.current || finishedRef.current) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 80) return;
+    lastTapRef.current = now;
     audio.tap();
     totalTapsRef.current += 1;
-    tapTimes.current.push(Date.now());
+    tapTimes.current.push(now);
     setTaps(t => {
       const next = t + 1;
       if (next >= TAPS_PER_PIZZA) {
@@ -635,93 +622,108 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, sessionBestCps }) => 
   }, []);
 
   const isOutage = timeLeft <= OUTAGE_START;
-  const timePct  = timeLeft / GAME_DURATION;
+
+  // Ring segments
+  const segments = Array.from({ length: TAPS_PER_PIZZA }, (_, i) => {
+    const r = 68, ri = 52, gap = 4;
+    const a1 = (i * 36 - 90) * Math.PI / 180;
+    const a2 = ((i + 1) * 36 - 90 - gap) * Math.PI / 180;
+    const x1 = r*Math.cos(a1), y1 = r*Math.sin(a1);
+    const x2 = r*Math.cos(a2), y2 = r*Math.sin(a2);
+    const xi1 = ri*Math.cos(a1), yi1 = ri*Math.sin(a1);
+    const xi2 = ri*Math.cos(a2), yi2 = ri*Math.sin(a2);
+    return (
+      <path key={i}
+        d={`M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 0 0 ${xi1} ${yi1} Z`}
+        fill={i < taps ? '#f97316' : '#1e293b'} opacity={i < taps ? 1 : 0.5}
+      />
+    );
+  });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 font-sans select-none">
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <DualGauge label="Kucharz OEE" unit=" CPS" value={cps} maxValue={WORLD_RECORD_CPS}
-          sessionBest={maxCps} worldMax={WORLD_RECORD_CPS} size={110}
-          colorFn={(p) => p > 0.75 ? '#22c55e' : p > 0.45 ? '#f97316' : '#ef4444'} />
-        <div className="flex flex-col items-center flex-1 gap-1 min-w-0">
+    <div className="min-h-screen bg-slate-950 text-white font-sans select-none flex flex-col px-4 pt-5 pb-4 gap-3">
+
+      {/* HUD */}
+      <div className="flex items-start justify-between">
+        <div className={`text-4xl font-black tabular-nums leading-none ${balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+          {fmt(balance)}
+        </div>
+        <div className="flex flex-col items-end">
           <p className="text-[8px] text-slate-600 uppercase tracking-widest">Próba {attempt}/3</p>
-          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-1000 ${isOutage ? 'bg-red-500' : 'bg-orange-500'}`}
-              style={{ width: `${timePct * 100}%` }} />
-          </div>
-          <div className={`text-5xl font-black font-mono tabular-nums leading-none mt-1
-            ${isOutage ? 'text-red-500 animate-pulse' : timeLeft <= 15 ? 'text-orange-400' : 'text-white'}`}>
-            {timeLeft}<span className="text-base text-slate-500">s</span>
-          </div>
-          {isOutage && <div className="flex items-center gap-1 text-red-500 text-[9px]"><Zap size={9} /> AWARIA</div>}
-          <div className="text-right w-full mt-1">
-            <p className={`text-xl font-black ${balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(balance)}</p>
-            <p className="text-[9px] text-slate-600">🍕 {baked}</p>
+          <div className={`text-4xl font-black font-mono tabular-nums leading-none ${isOutage ? 'text-red-500 animate-pulse' : timeLeft <= 15 ? 'text-orange-400' : 'text-white'}`}>
+            {timeLeft}<span className="text-sm text-slate-500">s</span>
           </div>
         </div>
-        <DualGauge label="Piec OEE" unit="%" value={ovenOeePct} maxValue={100}
-          sessionBest={null} worldMax={100} size={110}
-          colorFn={(p) => p > 0.7 ? '#22c55e' : p > 0.4 ? '#f97316' : '#ef4444'} />
       </div>
 
       {showOutage ? (
-        <OutageScreen wip={wip} onUnlock={handleOutageUnlock} timeLeft={timeLeft} />
+        <div className="flex-1 flex items-center justify-center">
+          <OutageScreen wip={wip} onUnlock={handleOutageUnlock} timeLeft={timeLeft}/>
+        </div>
       ) : (
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-4 mt-1">
-            {showTrafficLight && <TrafficLight ovenActive={ovenActive} powerOutage={powerOutage} />}
-            <div className={`w-28 h-40 rounded-t-full border-8 flex flex-col items-center justify-center relative
-              transition-all duration-300 shadow-2xl
-              ${ovenActive ? 'border-orange-500 bg-gradient-to-t from-red-950 to-slate-900 scale-105' : 'border-slate-700 bg-slate-900'}`}>
-              {ovenActive
-                ? <Pizza size={46} className="text-orange-400" style={{ animation: 'spin 3s linear infinite' }} />
-                : <span className="text-slate-800 font-black text-[9px] uppercase">Idle</span>}
-              <div className="absolute -bottom-4 bg-slate-800 border border-slate-700 px-2.5 py-0.5 rounded-full text-[8px] font-bold text-slate-500 whitespace-nowrap">
-                WĄSKIE GARDŁO · 3s
+        <>
+          {/* FLOW ROW: WIP | PIEC | GOTOWE */}
+          <div className="flex items-center gap-2">
+
+            {/* WIP SUROWE */}
+            <div className="flex-1 bg-orange-950 border border-orange-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
+              <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
+              <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
+                {wip === 0 && <span className="text-orange-900 text-[9px] italic">pusty blat</span>}
+                {[...Array(Math.min(wip, 8))].map((_, i) => (
+                  <div key={i} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${wip >= 4 ? 'border-orange-400 bg-orange-900 animate-pulse' : 'border-orange-700 bg-orange-950'}`}>🍕</div>
+                ))}
+                {wip > 8 && <span className="text-orange-400 text-[9px] font-bold">+{wip-8}</span>}
               </div>
+              <span className="text-[8px] text-orange-800">{wip} szt.</span>
             </div>
-          </div>
-          <div className="w-full max-w-xs mt-1">
-            <p className="text-[9px] text-slate-600 uppercase tracking-widest text-center mb-1">
-              WIP: {wip} · tap: {taps}/{TAPS_PER_PIZZA}
-            </p>
-            <div className="bg-black/40 border border-slate-800 rounded-xl p-2 min-h-9 flex flex-wrap gap-1 justify-center items-center">
-              {wip === 0 && <span className="text-slate-800 text-xs italic">pusty blat</span>}
-              {[...Array(Math.min(wip, 20))].map((_, i) => (
-                <div key={i} className="w-6 h-6 rounded-full bg-orange-900 border border-orange-700 flex items-center justify-center text-[10px]">🍕</div>
-              ))}
+
+            {/* PIEC SVG */}
+            <div className="flex flex-col items-center flex-shrink-0">
+              {showTrafficLight && <TrafficLightMini ovenActive={ovenActive}/>}
+              <OvenSVG active={ovenActive} progress={ovenProgress} pizzaPhase={pizzaPhase}/>
             </div>
-            <div className="mt-1 h-1 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-orange-500 rounded-full transition-all duration-75"
-                style={{ width: `${(taps / TAPS_PER_PIZZA) * 100}%` }} />
+
+            {/* GOTOWE */}
+            <div className="flex-1 bg-green-950 border border-green-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
+              <span className="text-[7px] text-green-800 uppercase tracking-widest font-bold">⬤ Gotowe</span>
+              <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
+                {baked === 0 && <span className="text-green-900 text-[9px] italic">czeka...</span>}
+                {[...Array(Math.min(baked, 8))].map((_, i) => (
+                  <div key={i} className="w-5 h-5 rounded-full bg-green-900 border border-green-500 flex items-center justify-center text-[10px]">🍕</div>
+                ))}
+                {baked > 8 && <span className="text-green-400 text-[9px] font-bold">+{baked-8}</span>}
+              </div>
+              <span className="text-[8px] text-green-800">{baked} szt.</span>
             </div>
+
           </div>
 
-          <button
-            onMouseDown={handleTap}
-            onTouchStart={(e) => { e.preventDefault(); handleTap(); }}
-            className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-red-700
-              border-8 border-orange-300 shadow-2xl active:scale-90 transition-transform duration-75
-              flex flex-col items-center justify-center">
-            <span className="text-4xl">🍕</span>
-            <span className="font-black text-sm text-white">KLEPIEMY!</span>
-          </button>
-        </div>
+          {/* RING + PRZYCISK */}
+          <div className="flex flex-col items-center gap-1 mt-1">
+            <div className="relative w-36 h-36">
+              <svg width="144" height="144" style={{ position: 'absolute', top: 0, left: 0 }}>
+                <g transform="translate(72,72)">{segments}</g>
+              </svg>
+              <button
+                onMouseDown={handleTap}
+                onTouchStart={(e) => { e.preventDefault(); handleTap(); }}
+                className="absolute inset-3 rounded-full bg-gradient-to-br from-orange-500 to-red-700
+                  border-4 border-orange-300 shadow-2xl active:scale-90 transition-transform duration-75
+                  flex flex-col items-center justify-center">
+                <span className="text-3xl">🍕</span>
+                <span className="font-black text-xs text-white">KLEPIEMY!</span>
+              </button>
+            </div>
+            <p className="text-[8px] text-slate-700 uppercase tracking-widest">{taps}/{TAPS_PER_PIZZA} tapów</p>
+          </div>
+        </>
       )}
 
       <style>{`
-        @keyframes spin       { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes pulse      { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-        @keyframes wipDie     {
-          0%   { transform: scale(1);    filter: grayscale(0)    brightness(1);   opacity: 1; }
-          30%  { transform: scale(1.2);  filter: grayscale(0.3)  brightness(1.5); opacity: 1; }
-          100% { transform: scale(0.7);  filter: grayscale(1)    brightness(0.3); opacity: 0.6; }
-        }
-        @keyframes floatPenalty {
-          0%   { transform: translateX(-50%) translateY(0px);   opacity: 1;   }
-          20%  { transform: translateX(-50%) translateY(-4px);  opacity: 1;   }
-          100% { transform: translateX(-50%) translateY(-32px); opacity: 0;   }
-        }
+        @keyframes pulse        { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        @keyframes wipDie       { 0%{transform:scale(1);filter:grayscale(0) brightness(1);opacity:1} 30%{transform:scale(1.2);filter:grayscale(0.3) brightness(1.5);opacity:1} 100%{transform:scale(0.7);filter:grayscale(1) brightness(0.3);opacity:0.6} }
+        @keyframes floatPenalty { 0%{transform:translateX(-50%) translateY(0);opacity:1} 20%{transform:translateX(-50%) translateY(-4px);opacity:1} 100%{transform:translateX(-50%) translateY(-32px);opacity:0} }
       `}</style>
     </div>
   );
@@ -733,19 +735,17 @@ export default function PizzaTOC() {
   const [attempt,        setAttempt]        = useState(1);
   const [history,        setHistory]        = useState([]);
   const [lastResult,     setLastResult]     = useState(null);
-  const [sessionBestCps, setSessionBestCps] = useState(0);
   const MAX_ATTEMPTS = 3;
 
   const handleFinish = (result) => {
     const h = [...history, result];
     setHistory(h);
     setLastResult(result);
-    if (result.maxCps > sessionBestCps) setSessionBestCps(result.maxCps);
     setPhase(attempt >= MAX_ATTEMPTS ? 'FINAL' : 'ATTEMPT_RESULT');
   };
 
   const handleNext    = () => { setAttempt(a => a + 1); setPhase('PLAYING'); };
-  const handleRestart = () => { setPhase('START'); setAttempt(1); setHistory([]); setLastResult(null); setSessionBestCps(0); };
+  const handleRestart = () => { setPhase('START'); setAttempt(1); setHistory([]); setLastResult(null); };
 
   if (phase === 'START') return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6 text-center">
@@ -760,9 +760,7 @@ export default function PizzaTOC() {
         <p>• 10 tapów → 1 pizza na blat (WIP)</p>
         <p>• Piec: 1 pizza co 3s → <strong className="text-orange-400">+$100</strong></p>
         <p>• Awaria: WIP = <strong className="text-red-400">-${PENALTY_RATE}/szt/s</strong></p>
-        <p>• OEE kucharza: Twój CPS vs rekord świata (10 CPS)</p>
-        <p>• OEE pieca: ile czasu faktycznie pracował</p>
-        <p>• Próba 3: sygnalizator pieca 🚦</p>
+        <p>• Próba 2: sygnalizator pieca 🚦</p>
       </div>
       <button onClick={() => setPhase('PLAYING')}
         className="bg-orange-500 hover:bg-orange-400 px-12 py-4 rounded-full font-black text-xl transition-colors">
@@ -772,16 +770,15 @@ export default function PizzaTOC() {
   );
 
   if (phase === 'PLAYING') return (
-    <GameScreen key={attempt} attempt={attempt} onFinish={handleFinish}
-      showTrafficLight={attempt >= 3} sessionBestCps={sessionBestCps} />
+    <GameScreen key={attempt} attempt={attempt} onFinish={handleFinish} showTrafficLight={attempt >= 2}/>
   );
 
   if (phase === 'ATTEMPT_RESULT') return (
-    <AttemptResult result={lastResult} attempt={attempt} onNext={handleNext} isLast={attempt >= MAX_ATTEMPTS} />
+    <AttemptResult result={lastResult} attempt={attempt} onNext={handleNext} isLast={attempt >= MAX_ATTEMPTS}/>
   );
 
   if (phase === 'FINAL') return (
-    <ResultsTable history={history} onRestart={handleRestart} />
+    <ResultsTable history={history} onRestart={handleRestart}/>
   );
 
   return null;
