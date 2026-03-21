@@ -512,6 +512,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
   const [baked,        setBaked]       = useState(0);
   const [powerOutage,  setPowerOutage] = useState(false);
   const [showOutage,   setShowOutage]  = useState(false);
+  const [ropeLimit,    setRopeLimit]   = useState(3); // null = ∞
+  const autoIntervalRef = useRef(null);
 
   const balanceRef      = useRef(0);
   const wipRef          = useRef(0);
@@ -655,6 +657,16 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     });
   }, []);
 
+  // Auto-klikacz — zawsze aktywny w próbie 3+, klika gdy WIP < ropeLimit
+  useEffect(() => {
+    if (attempt < 3) return;
+    autoIntervalRef.current = setInterval(() => {
+      const withinLimit = ropeLimit === null || wipRef.current < ropeLimit;
+      if (withinLimit && !outageRef.current && !finishedRef.current) handleTap();
+    }, 100);
+    return () => clearInterval(autoIntervalRef.current);
+  }, [ropeLimit, handleTap, attempt]);
+
   const isOutage = timeLeft <= OUTAGE_START;
 
   const segments = Array.from({ length: 4 }, (_, i) => {
@@ -694,7 +706,36 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
       ) : (
         <>
           <div className="flex items-center gap-2">
-            <div className="flex-1 bg-orange-950 border border-orange-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
+            <div className="flex-1 flex flex-col gap-1">
+              {/* STATUS BAR — tylko próba 2+ */}
+              {attempt >= 2 && (
+              <div className={`flex items-center justify-between px-2 py-1 rounded-lg transition-all duration-300
+                ${wip === 0 || wip > 4 ? 'bg-red-950 border border-red-800' : wip <= 2 ? 'bg-green-950 border border-green-800' : 'bg-yellow-950 border border-yellow-800'}`}>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0
+                    ${wip === 0 || wip > 4 ? 'bg-red-500' : wip <= 2 ? 'bg-green-400' : 'bg-yellow-400'}`}
+                    style={wip > 4 ? { animation: 'pulse 0.6s ease-in-out infinite' } : {}}/>
+                  <span className={`text-[9px] font-bold uppercase tracking-wide
+                    ${wip <= 2 ? 'text-green-400' : wip <= 4 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {wip === 0 ? '✕ niebezpiecznie niski poziom' : wip <= 2 ? '✓ ok — bezpieczny poziom' : wip <= 4 ? '⚠ uwaga — poziom wzrasta' : '✕ niebezpiecznie wysoki'}
+                  </span>
+                </div>
+                <span className={`text-[9px] font-bold
+                  ${wip === 0 || wip > 4 ? 'text-red-400' : wip <= 2 ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {wip}
+                </span>
+              </div>
+              )}
+            <div className={`flex-1 bg-orange-950 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1 transition-all duration-150
+              ${attempt >= 2
+                ? wip === 0  ? 'border-2 border-green-700'
+                : wip <= 2   ? 'border-2 border-green-500 shadow-[0_0_8px_rgba(74,222,128,0.5)]'
+                : wip <= 4   ? 'border-2 border-yellow-500 shadow-[0_0_8px_rgba(250,204,21,0.5)]'
+                :              'border-2 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]'
+                : 'border border-orange-900'
+              }
+              ${attempt >= 2 && taps > 0 ? 'scale-[1.02]' : 'scale-100'}
+            `}>
               <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
               <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
                 {wip === 0 && <span className="text-orange-900 text-[9px] italic">pusty blat</span>}
@@ -704,6 +745,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
                 {wip > 8 && <span className="text-orange-400 text-[9px] font-bold">+{wip-8}</span>}
               </div>
               <span className="text-[8px] text-orange-800">{wip} szt.</span>
+            </div>
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
               {showTrafficLight && <TrafficLightMini ovenActive={ovenActive}/>}
@@ -722,8 +764,67 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
             </div>
           </div>
 
-          {/* PLACEHOLDER — TOC PRO */}
-          <div style={{ height: 120 }}/>
+          {/* ROPE + AUTO — tylko próba 3+ */}
+          {attempt >= 3 ? (
+            <div className="flex flex-col gap-2">
+
+              {/* ROPE regulator */}
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">🪢 Rope — limit WIP</span>
+                  <span className="text-[9px] text-slate-600">{ropeLimit === null ? 'brak limitu' : `max ${ropeLimit}`}</span>
+                </div>
+                <div className="flex gap-2">
+                  {[null,1,2,3,4,5].map(v => (
+                    <button key={v ?? 'inf'} onClick={() => setRopeLimit(v)}
+                      className={`flex-1 py-1.5 rounded-xl text-sm font-black transition-all
+                        ${ropeLimit === v
+                          ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)]'
+                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+                      {v === null ? '∞' : v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SIGNAL LINE: WIP → 🤖 → przycisk */}
+              <div style={{ position: 'relative', height: 44, display: 'flex', alignItems: 'center' }}>
+                {/* Linia tło */}
+                <div style={{ position: 'absolute', left: '10%', right: '10%', height: 2, background: '#1e293b', borderRadius: 2 }}/>
+                {/* Linia aktywna */}
+                <div style={{
+                  position: 'absolute', left: '10%', height: 2, borderRadius: 2,
+                  width: ropeLimit !== null && wip >= ropeLimit ? '35%' : '80%',
+                  background: ropeLimit !== null && wip >= ropeLimit ? '#ef4444' : '#4ade80',
+                  boxShadow: ropeLimit !== null && wip >= ropeLimit ? '0 0 6px rgba(239,68,68,0.7)' : '0 0 6px rgba(74,222,128,0.7)',
+                  transition: 'all 0.4s ease'
+                }}/>
+                {/* Dot WIP */}
+                <div style={{ position: 'absolute', left: '8%', width: 10, height: 10, borderRadius: '50%', background: ropeLimit !== null && wip >= ropeLimit ? '#ef4444' : '#4ade80', boxShadow: '0 0 8px currentColor', transform: 'translateX(-50%)' }}/>
+                {/* Label WIP */}
+                <div style={{ position: 'absolute', left: '10%', top: 0, fontSize: 7, color: '#475569', textTransform: 'uppercase' }}>WIP</div>
+
+                {/* Robot 🤖 — jedzie po linie */}
+                <div style={{
+                  position: 'absolute',
+                  left: ropeLimit !== null && wip >= ropeLimit ? '40%' : '82%',
+                  top: '50%', transform: 'translate(-50%, -50%)',
+                  fontSize: 20,
+                  transition: 'left 0.5s cubic-bezier(0.34,1.56,0.64,1)',
+                  animation: ropeLimit !== null && wip >= ropeLimit ? 'robotWarn 0.35s ease-in-out infinite alternate' : 'robotBounce 0.2s ease-in-out infinite alternate',
+                  zIndex: 2,
+                }}>🤖</div>
+
+                {/* Label status */}
+                <div style={{ position: 'absolute', right: '10%', top: 0, fontSize: 7, color: '#475569', textTransform: 'uppercase' }}>PRZYCISK</div>
+                {/* Dot przycisk */}
+                <div style={{ position: 'absolute', right: '8%', width: 10, height: 10, borderRadius: '50%', background: ropeLimit !== null && wip >= ropeLimit ? '#334155' : '#f97316', boxShadow: ropeLimit !== null && wip >= ropeLimit ? 'none' : '0 0 8px rgba(249,115,22,0.8)', transform: 'translateX(50%)' }}/>
+              </div>
+
+            </div>
+          ) : (
+            <div style={{ height: 120 }}/>
+          )}
 
           <div className="flex flex-col items-center gap-1 mt-1">
             <div className="relative w-36 h-36">
@@ -733,11 +834,15 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
               <button
                 onMouseDown={handleTap}
                 onTouchStart={(e) => { e.preventDefault(); handleTap(); }}
-                className="absolute inset-3 rounded-full bg-gradient-to-br from-orange-500 to-red-700
-                  border-4 border-orange-300 shadow-2xl active:scale-90 transition-transform duration-75
-                  flex flex-col items-center justify-center">
+                className={`absolute inset-3 rounded-full border-4 shadow-2xl transition-all duration-300 flex flex-col items-center justify-center
+                  ${attempt >= 3 && ropeLimit !== null && wip >= ropeLimit
+                    ? 'bg-slate-800 border-slate-600'
+                    : 'bg-gradient-to-br from-orange-500 to-red-700 border-orange-300'}`}
+                style={{ animation: (attempt >= 3 && (ropeLimit === null || wip < ropeLimit)) ? 'autoPress 0.1s ease-in-out infinite alternate' : 'none' }}>
                 <span className="text-3xl">🍕</span>
-                <span className="font-black text-xs text-white">KLEPIEMY!</span>
+                <span className="font-black text-xs text-white">
+                  {attempt >= 3 && ropeLimit !== null && wip >= ropeLimit ? 'ROPE' : 'KLEPIEMY!'}
+                </span>
               </button>
             </div>
             <p className="text-[8px] text-slate-700 uppercase tracking-widest">{taps}/{TAPS_PER_PIZZA} tapów</p>
@@ -749,6 +854,9 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
         @keyframes pulse        { 0%,100%{opacity:1} 50%{opacity:0.35} }
         @keyframes wipDie       { 0%{transform:scale(1);opacity:1;filter:brightness(1)} 25%{transform:scale(1.8);opacity:1;filter:brightness(3) saturate(3)} 60%{transform:scale(1.2);opacity:0.6;filter:brightness(0.5) grayscale(0.5)} 100%{transform:scale(0.2);opacity:0;filter:grayscale(1)} }
         @keyframes floatPenalty { 0%{transform:translateX(-50%) translateY(0);opacity:1} 100%{transform:translateX(-50%) translateY(-28px);opacity:0} }
+        @keyframes autoPress    { from{transform:scale(1)} to{transform:scale(0.88)} }
+        @keyframes robotBounce  { from{transform:translateX(-50%) translateY(0)} to{transform:translateX(-50%) translateY(-6px)} }
+        @keyframes robotWarn    { from{transform:translateX(-50%) translateY(0) rotate(-10deg)} to{transform:translateX(-50%) translateY(-8px) rotate(10deg)} }
       `}</style>
     </div>
   );
@@ -757,7 +865,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
   const [phase,      setPhase]      = useState('START');
-  const [attempt,    setAttempt]    = useState(1);
+  const [attempt,    setAttempt]    = useState(3);
   const [history,    setHistory]    = useState([]);
   const [lastResult, setLastResult] = useState(null);
   const MAX_ATTEMPTS = 3;
