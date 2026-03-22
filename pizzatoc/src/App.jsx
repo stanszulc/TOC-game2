@@ -311,7 +311,7 @@ const OeeAnalysis = ({ history, onClose }) => (
 );
 
 // ─── RESULTS TABLE ────────────────────────────────────────────────────────────
-const ResultsTable = ({ history, onRestart, onRepeatE3, onRepeatE4 }) => {
+const ResultsTable = ({ history, attempt, onRestart, onContinue, onRepeatE3, onRepeatE4, onGoE4 }) => {
   const [showOee, setShowOee] = useState(false);
   const best = [...history].sort((a, b) => b.balance - a.balance)[0];
   const bestAttempt = best?.attempt;
@@ -388,10 +388,12 @@ const ResultsTable = ({ history, onRestart, onRepeatE3, onRepeatE4 }) => {
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-sm">
-        <button onClick={() => setShowOee(true)}
-          className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
-          <BarChart2 size={18} className="text-orange-400"/> Analiza OEE
-        </button>
+        {onContinue && (
+          <button onClick={onContinue}
+            className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 px-8 py-4 rounded-full font-black text-lg transition-colors text-white">
+            <ChevronRight size={18}/> Etap {(attempt||1) + 1}
+          </button>
+        )}
         {onRepeatE3 && (
           <button onClick={onRepeatE3}
             className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
@@ -405,6 +407,17 @@ const ResultsTable = ({ history, onRestart, onRepeatE3, onRepeatE4 }) => {
             ⚡ Powtórz etap 4 PRO
           </button>
         )}
+        {onGoE4 && !onRepeatE4 && (
+          <button onClick={onGoE4}
+            className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-white"
+            style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow:'0 0 20px rgba(124,58,237,0.4)' }}>
+            ⚡ Etap 4 — tryb PRO
+          </button>
+        )}
+        <button onClick={() => setShowOee(true)}
+          className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
+          <BarChart2 size={18} className="text-orange-400"/> Analiza OEE
+        </button>
         <button onClick={onRestart}
           className="flex items-center justify-center gap-2 bg-white text-black px-8 py-3.5 rounded-full font-black text-base hover:bg-orange-400 transition-colors">
           <RotateCcw size={16}/> Zagraj ponownie
@@ -579,6 +592,108 @@ const AttemptResult = ({ result, attempt, onNext, isLast, history, onRetry, onRe
             {isLast ? <><Trophy size={18}/> Podsumowanie</> : <><ChevronRight size={18}/> Etap {attempt + 1}</>}
           </button>
         )}
+      </div>
+    </div>
+  );
+};
+
+// ─── EDU SCREEN ───────────────────────────────────────────────────────────────
+const EduScreen = ({ result, attempt, history, onNext }) => {
+  const [simWip, setSimWip] = useState(2);
+  const prevResult = history.length >= 2 ? history[history.length - 2] : null;
+  const feedback = attempt === 1 ? getFeedbackE1(result)
+                 : attempt === 2 ? getFeedbackE2(result, prevResult)
+                 : attempt === 3 ? getFeedbackE3(result, history)
+                 : getFeedbackE3(result, history);
+
+  const simLt   = Math.max(3, (simWip + 1) * 3);
+  const simRisk = simWip * 50;
+  const ltCol   = simLt <= 3 ? '#4ade80' : simLt <= 9 ? '#eab308' : '#ef4444';
+
+  const knowledge = {
+    1: { icon: '🥁', color: '#f97316', title: 'Czym jest Drum?',
+         body: 'Piec piecze jedną pizzę co 3 sekundy — nie szybciej. To wąskie gardło które dyktuje tempo całej produkcji. Kucharz może klepać ile chce — piec i tak bije własnym rytmem.',
+         sim: true, simTitle: 'Co się dzieje gdy produkujesz bez limitu?' },
+    2: { icon: '🛡️', color: '#378ADD', title: 'Czym jest Buffer?',
+         body: 'Mały zapas przed piecem (WIP 1-2) gwarantuje że piec nigdy nie czeka. Za dużo WIP to nadprodukcja i ryzyko straty. Za mało — piec stoi i traci czas.',
+         sim: false },
+    3: { icon: '🪢', color: '#4ade80', title: 'Czym jest Rope?',
+         body: 'Rope hamuje produkcję gdy buffer jest pełny. Synchronizuje tempo kuchni z rytmem pieca. Razem Drum–Buffer–Rope = zsynchronizowany system bez zbędnego WIP.',
+         sim: true, simTitle: 'Rope vs brak limitu — co się dzieje z LT?' },
+    4: { icon: '📊', color: '#7c3aed', title: 'OEE i Lead Time',
+         body: 'OEE mierzy efektywność systemu — Dostępność × Wydajność × Jakość. Lead Time to czas od blatu do gotowego. Im więcej WIP → dłuższy LT → większe ryzyko podczas awarii.',
+         sim: true, simTitle: 'Obserwuj jak WIP eksploduje LT' },
+  };
+  const k = knowledge[attempt] || knowledge[4];
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col p-5 gap-4" onClick={onNext}
+      style={{ cursor: 'pointer' }}>
+
+      {/* Wynik */}
+      <div className="text-center pt-4">
+        <p className="text-[10px] text-slate-600 uppercase tracking-widest mb-1">Wynik etapu {attempt}</p>
+        <div className={`text-5xl font-black ${result.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+          {fmt(result.balance)}
+        </div>
+        <div className="flex justify-center gap-4 mt-3 text-sm">
+          <span className="text-orange-400 font-bold">🍕 {result.baked}</span>
+          <span className={result.wipAtEnd > 0 ? 'text-red-400 font-bold' : 'text-slate-600'}>🗑 {result.wipAtEnd}</span>
+          {result.avgLt && <span className="text-blue-400 font-bold">⏱ {result.avgLt}s</span>}
+        </div>
+      </div>
+
+      {/* Feedback dynamiczny */}
+      <div className="rounded-2xl border p-4 flex flex-col gap-2"
+        style={{ background: `${feedback.color}11`, borderColor: `${feedback.color}44` }}>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{feedback.icon}</span>
+          <span className="font-black text-base" style={{ color: feedback.color }}>{feedback.title}</span>
+        </div>
+        <p className="text-sm text-slate-300 leading-relaxed">{feedback.body}</p>
+      </div>
+
+      {/* Wiedza TOC */}
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">{k.icon}</span>
+          <span className="font-black text-sm" style={{ color: k.color }}>{k.title}</span>
+        </div>
+        <p className="text-sm text-slate-400 leading-relaxed">{k.body}</p>
+      </div>
+
+      {/* Symulacja WIP */}
+      {k.sim && (
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3"
+          onClick={e => e.stopPropagation()}>
+          <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">{k.simTitle}</p>
+          <div className="flex items-center gap-3">
+            <span className="text-slate-400 text-sm">WIP:</span>
+            <input type="range" min="0" max="12" value={simWip}
+              onChange={e => setSimWip(Number(e.target.value))}
+              className="flex-1"/>
+            <span className="font-black text-lg text-orange-400 w-8 text-right">{simWip}</span>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1 bg-slate-800 rounded-xl p-3 text-center">
+              <div className="text-[8px] text-slate-500 uppercase mb-1">Lead Time</div>
+              <div className="text-2xl font-black" style={{ color: ltCol }}>{simLt}s</div>
+            </div>
+            <div className="flex-1 bg-red-950 border border-red-900 rounded-xl p-3 text-center">
+              <div className="text-[8px] text-red-700 uppercase mb-1">Ryzyko awarii</div>
+              <div className="text-2xl font-black text-red-400">-${simRisk}</div>
+            </div>
+          </div>
+          <div style={{ height: 6, background: '#1e293b', borderRadius: 3 }}>
+            <div style={{ height: '100%', borderRadius: 3, background: ltCol, width: `${Math.min(simLt/30*100,100)}%`, transition: 'all 0.3s' }}/>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col items-center gap-1 mt-auto pb-2">
+        <div className="text-[10px] text-slate-600 uppercase tracking-widest animate-pulse">
+          Dotknij ekran → podsumowanie
+        </div>
       </div>
     </div>
   );
@@ -1281,8 +1396,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
-  const [phase,      setPhase]      = useState('E4_SETUP');
-  const [attempt,    setAttempt]    = useState(4);
+  const [phase,      setPhase]      = useState('START');
+  const [attempt,    setAttempt]    = useState(1);
   const [history,    setHistory]    = useState([]);
   const [lastResult, setLastResult] = useState(null);
   const [initialRope, setInitialRope] = useState(3);
@@ -1292,17 +1407,18 @@ export default function PizzaTOC() {
     const h = [...history, result];
     setHistory(h);
     setLastResult(result);
-    setPhase(attempt >= MAX_ATTEMPTS ? 'FINAL' : 'ATTEMPT_RESULT');
+    setPhase('EDU');
   };
 
-  const handleNext  = () => {
-    if (attempt >= MAX_ATTEMPTS) { setPhase('FINAL'); return; }
+  const handleNext  = () => { setPhase('SUMMARY'); };
+  const handleGoE4      = () => { setAttempt(4); setPhase('E4_SETUP'); };
+  const handleContinue  = () => {
+    if (attempt >= MAX_ATTEMPTS) return;
     const next = attempt + 1;
     setAttempt(next);
     if (next === 3) { setPhase('ROPE_SETUP'); }
     else { setPhase('PLAYING'); }
   };
-  const handleGoE4 = () => { setAttempt(4); setPhase('E4_SETUP'); };
   const handleRetry    = () => { setPhase('PLAYING'); };
   const handleRepeatE3  = () => { setAttempt(3); setPhase('ROPE_SETUP'); };
   const handleRestart = () => { setPhase('START'); setAttempt(1); setHistory([]); setLastResult(null); };
@@ -1354,22 +1470,25 @@ export default function PizzaTOC() {
     <GameScreen key={`${attempt}-${history.length}`} attempt={attempt} onFinish={handleFinish} showTrafficLight={attempt >= 2} initialRope={initialRope}/>
   );
 
-  if (phase === 'ATTEMPT_RESULT') return (
-    <AttemptResult
+  if (phase === 'EDU') return (
+    <EduScreen
       result={lastResult}
       attempt={attempt}
-      onNext={handleNext}
-      onRetry={handleRetry}
-      onRepeatE3={attempt === 3 ? handleRepeatE3 : undefined}
-      onGoE4={attempt === 3 ? handleGoE4 : undefined}
-
-      isLast={attempt >= MAX_ATTEMPTS}
       history={history}
+      onNext={handleNext}
     />
   );
 
-  if (phase === 'FINAL') return (
-    <ResultsTable history={history} onRestart={handleRestart} onRepeatE3={handleRepeatE3} onRepeatE4={() => { setAttempt(4); setPhase('E4_SETUP'); }}/>
+  if (phase === 'SUMMARY') return (
+    <ResultsTable
+      history={history}
+      attempt={attempt}
+      onRestart={handleRestart}
+      onContinue={attempt < MAX_ATTEMPTS ? handleContinue : undefined}
+      onRepeatE3={attempt >= 3 ? handleRepeatE3 : undefined}
+      onRepeatE4={attempt >= 4 ? () => { setAttempt(4); setPhase('E4_SETUP'); } : undefined}
+      onGoE4={attempt === 3 ? handleGoE4 : undefined}
+    />
   );
 
   return null;
