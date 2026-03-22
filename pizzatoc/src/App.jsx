@@ -45,13 +45,7 @@ const createAudio = () => {
     whoosh: () => { play(180, 'sine', 0.07, 0.12); play(520, 'sine', 0.04, 0.1, 0.04); },
     ching:  () => { play(1046, 'triangle', 0.15, 0.35); play(1568, 'triangle', 0.12, 0.45, 0.06); play(2093, 'triangle', 0.08, 0.55, 0.12); },
     plop:   () => play(280, 'sine', 0.08, 0.08),
-    // D — Zamknięta kasa: bas + metaliczny pisk
-    cash:   () => {
-      play(120, 'sine', 0.22, 0.2);
-      play(1400, 'triangle', 0.08, 0.1, 0.05);
-      play(900, 'triangle', 0.05, 0.12, 0.12);
-    },
-    // Dźwięk awarii
+    cash:   () => { play(120, 'sine', 0.22, 0.2); play(1400, 'triangle', 0.08, 0.1, 0.05); play(900, 'triangle', 0.05, 0.12, 0.12); },
     outage: () => {
       try {
         const c = ac(), o = c.createOscillator(), g = c.createGain();
@@ -118,13 +112,12 @@ const TrafficLightMini = ({ ovenActive }) => (
   </div>
 );
 
-// ─── WIP PIZZA ITEM (awaria — eksplozja) ─────────────────────────────────────
+// ─── WIP PIZZA ITEM ───────────────────────────────────────────────────────────
 const WipPizzaItem = ({ index, onExplode }) => {
   const [phase, setPhase]     = useState('alive');
   const [showNum, setShowNum] = useState(false);
   const triggered             = useRef(false);
 
-  // Expose trigger function via callback
   useEffect(() => {
     if (onExplode) onExplode(index, () => {
       if (triggered.current) return;
@@ -147,7 +140,7 @@ const WipPizzaItem = ({ index, onExplode }) => {
       {showNum && (
         <div className="absolute text-red-400 font-black text-xs pointer-events-none select-none"
           style={{ top: 0, left: '50%', transform: 'translateX(-50%)', animation: 'floatPenalty 1s ease-out forwards', whiteSpace: 'nowrap', textShadow: '0 0 8px rgba(239,68,68,0.8)', zIndex: 10 }}>
-          -$30
+          -$50
         </div>
       )}
     </div>
@@ -165,14 +158,11 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
   const triggers                  = useRef({});
 
   useEffect(() => {
-    // Flash
     const flashTimers = [
       setTimeout(() => setFlash(false), 160),
       setTimeout(() => setFlash(true),  320),
       setTimeout(() => setFlash(false), 480),
     ];
-
-    // Co 1s: dźwięk D + eksplozja pizzy
     const beatTimers = Array.from({ length: wipCount.current }, (_, i) =>
       setTimeout(() => {
         audio.cash();
@@ -183,7 +173,6 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
         onBalanceUpdate && onBalanceUpdate(PENALTY_RATE);
       }, 800 + i * 1000)
     );
-
     return () => { [...flashTimers, ...beatTimers].forEach(clearTimeout); };
   }, []);
 
@@ -204,34 +193,25 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
       {flash && <div className="fixed inset-0 bg-red-600 opacity-50 pointer-events-none z-50"/>}
       <Zap size={50} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }}/>
       <h2 className="text-3xl font-black text-red-500">AWARIA PRĄDU!</h2>
-
-      {/* Pizze na blacie */}
       {count > 0 && (
         <div className="flex flex-wrap justify-center gap-2 max-w-xs">
           {[...Array(Math.min(count, 20))].map((_, i) => (
             <WipPizzaItem key={i} index={i} onExplode={(idx, fn) => { triggers.current[idx] = fn; }}/>
           ))}
           {count > 20 && (
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-red-900 border-2 border-red-600 text-xs font-black text-red-300"
-              id="extra-wip">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-red-900 border-2 border-red-600 text-xs font-black text-red-300">
               +{count - 20}
             </div>
           )}
         </div>
       )}
-
-      {/* Panel straty */}
       <div className="w-full max-w-xs bg-red-950 border border-red-900 rounded-2xl p-4 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">💨</span>
           <span className="text-[10px] text-red-700 uppercase tracking-widest font-bold">Awaria — straty</span>
         </div>
-        <div className="text-4xl font-black text-red-400 text-center">
-          -{totalLoss}$
-        </div>
-        <div className="text-xs text-red-800 text-center">
-          {exploded} nieupieczone pizze × $50
-        </div>
+        <div className="text-4xl font-black text-red-400 text-center">-{totalLoss}$</div>
+        <div className="text-xs text-red-800 text-center">{exploded} nieupieczone pizze × $50</div>
         <div className="w-full h-2 bg-red-900 rounded-full overflow-hidden">
           <div className="h-full bg-red-500 rounded-full transition-all duration-700"
             style={{ width: `${100 - (exploded / Math.max(count, 1)) * 100}%` }}/>
@@ -241,7 +221,6 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
           <span className="text-red-400 font-bold">{exploded} / {wipCount.current}</span>
         </div>
       </div>
-
       <div className="mt-2">
         {locked
           ? <div className="flex flex-col items-center gap-1">
@@ -280,7 +259,7 @@ const OeePanel = ({ r }) => {
   return (
     <div style={{ background: '#1a2035', border: '1px solid #2a3150', borderRadius: 16, overflow: 'hidden', color: '#fff', marginBottom: 12 }}>
       <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #2a3150' }}>
-        <span style={{ fontWeight: 600, fontSize: 15 }}>Próba #{r.attempt}</span>
+        <span style={{ fontWeight: 600, fontSize: 15 }}>Etap #{r.attempt}</span>
         <span style={{ fontWeight: 700, fontSize: 15, color: r.balance >= 0 ? '#4ade80' : '#f87171' }}>{fmt(r.balance)}</span>
       </div>
       <div style={{ padding: '14px 14px 0' }}>
@@ -304,48 +283,6 @@ const OeePanel = ({ r }) => {
             <div style={{ fontSize: 11, color: '#3a4260' }}>{avail}% × {perf}% × {qual}%</div>
           </div>
           <div style={{ fontSize: 28, fontWeight: 500, color: cr.text }}>{oee}%</div>
-        </div>
-      </div>
-      <div style={{ borderTop: '1px solid #2a3150' }}>
-        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, background: '#0d1520', borderBottom: '1px solid #2a3150' }}>
-          <span style={{ fontSize: 22 }}>📐</span>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 500, color: '#378ADD' }}>Jak działa wzór OEE?</div>
-            <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#1a3a5a', marginTop: 2 }}>Overall Equipment Effectiveness</div>
-          </div>
-        </div>
-        <div style={{ padding: '14px 16px' }}>
-          <p style={{ fontSize: 14, color: '#c8cfe0', lineHeight: 1.65, marginBottom: 12 }}>
-            OEE to iloczyn trzech liczb. Każda z nich "<span style={{ color: '#378ADD', fontWeight: 500 }}>zjada</span>" część potencjału. Nawet jeśli dwa składniki są świetne — jeden zły ciągnie całość w dół.
-          </p>
-          <div style={{ height: 1, background: '#2a3150', marginBottom: 12 }}/>
-          <div style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#378ADD', marginBottom: 10 }}>Trzy pytania = trzy składniki</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            {[
-              { icon: '⚡', name: 'Czy działał?', c: ca, lines: ['Czas pracy ÷ czas całkowity', `20 ÷ 30 = ${avail}%`, 'awaria zabrała 33%'], lc: ['#8890aa', ca.text, '#f87171'] },
-              { icon: '⏱️', name: 'Czy piekł w rytmie?', c: cp, lines: ['Upieczone ÷ max możliwe', `${r.baked} ÷ ${MAX_BY_OVEN} = ${perf}%`, 'piec bił równo co 3s'], lc: ['#8890aa', cp.text, '#4ade80'] },
-              { icon: '✅', name: 'Czy trafiło do klienta?', c: cq, lines: ['Sprzedane ÷ wszystkie wytworzone', `${r.baked} ÷ ${total} = ${qual}%`, `${r.wipAtEnd} WIP = scrap`], lc: ['#8890aa', cq.text, '#f87171'] },
-            ].map(({ icon, name, c, lines, lc }) => (
-              <div key={name} style={{ flex: 1, background: '#141928', border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px 8px', textAlign: 'center' }}>
-                <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 500, color: c.text, marginBottom: 8 }}>{name}</div>
-                {lines.map((l, i) => <div key={i} style={{ fontSize: 11, color: lc[i], lineHeight: 1.5, marginBottom: i === 0 ? 6 : 2 }}>{l}</div>)}
-              </div>
-            ))}
-          </div>
-          <div style={{ background: '#0e1525', borderRadius: 10, padding: '12px 14px' }}>
-            <div style={{ fontSize: 10, color: '#8890aa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Wzór krok po kroku</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 14, fontWeight: 500 }}>
-              <span style={{ color: ca.text }}>{avail}%</span><span style={{ color: '#4a5270' }}>×</span>
-              <span style={{ color: cp.text }}>{perf}%</span><span style={{ color: '#4a5270' }}>×</span>
-              <span style={{ color: cq.text }}>{qual}%</span><span style={{ color: '#4a5270' }}>=</span>
-              <span style={{ color: cr.text, fontSize: 20 }}>{oee}%</span>
-              <span style={{ color: '#4a5270', fontSize: 11, marginLeft: 4 }}>OEE pizzerii</span>
-            </div>
-            <div style={{ fontSize: 11, color: '#4a5270', marginTop: 8, fontStyle: 'italic' }}>
-              Światowa klasa to 85%. Każdy WIP na blacie podczas awarii obniża jakość i demoluje OEE.
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -377,75 +314,78 @@ const OeeAnalysis = ({ history, onClose }) => (
 const ResultsTable = ({ history, onRestart }) => {
   const [showOee, setShowOee] = useState(false);
   const best = [...history].sort((a, b) => b.balance - a.balance)[0];
+  const bestAttempt = best?.attempt;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-5 pb-12">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center p-5 pb-12 gap-6">
       {showOee && <OeeAnalysis history={history} onClose={() => setShowOee(false)}/>}
-      <Trophy size={44} className="text-yellow-400 mb-3"/>
-      <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">RAPORT KOŃCOWY</h1>
-      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-6">OEE vs Theory of Constraints</p>
-      <div className="w-full max-w-lg space-y-3 mb-6">
-        <div className="grid grid-cols-5 gap-2 text-[10px] text-slate-600 uppercase px-3">
-          <span>Próba</span><span className="text-center">$</span>
-          <span className="text-center">CPS↑</span><span className="text-center">🍕</span>
-          <span className="text-center">🗑WIP</span>
-        </div>
+
+      <div className="text-center pt-4">
+        <Trophy size={44} className="text-yellow-400 mx-auto mb-3"/>
+        <h1 className="text-3xl font-black mb-1 bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">PODSUMOWANIE</h1>
+        <p className="text-slate-600 text-[10px] uppercase tracking-widest">Drum · Buffer · Rope</p>
+      </div>
+
+      {/* Tabela etapów */}
+      <div className="w-full max-w-lg space-y-3">
         {history.map((r, i) => {
-          const isBest = r.balance === best.balance;
+          const isBest = r.attempt === bestAttempt;
           const { chefOee, ovenOee } = calcOee(r);
+          const avail = 67;
+          const perf  = Math.min(100, Math.round((r.baked / MAX_BY_OVEN) * 100));
+          const total = r.baked + r.wipAtEnd;
+          const qual  = total === 0 ? 100 : Math.round((r.baked / total) * 100);
+          const oeePiz = Math.round(avail * perf * qual / 10000);
+          const labels = ['', 'E1 — na maksa', 'E2 — z sygnałami', 'E3 — Rope + Auto'];
           return (
-            <div key={i} className={`rounded-xl border overflow-hidden ${isBest ? 'border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-800'}`}>
-              <div className={`grid grid-cols-5 gap-2 items-center px-3 py-2.5 ${isBest ? 'bg-orange-500/10' : 'bg-slate-900'}`}>
-                <span className="font-bold text-sm flex items-center gap-1">{isBest && <Trophy size={10} className="text-yellow-400"/>}#{r.attempt}</span>
-                <span className={`text-center font-black text-sm ${r.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(r.balance)}</span>
-                <span className="text-center text-blue-400 font-bold text-sm">{r.maxCps}</span>
-                <span className="text-center text-slate-200 text-sm">{r.baked}</span>
-                <span className={`text-center text-sm font-bold ${r.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500'}`}>{r.wipAtEnd}</span>
+            <div key={i} className={`rounded-2xl border overflow-hidden ${isBest ? 'border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-800'}`}>
+              <div className={`flex items-center justify-between px-4 py-2.5 ${isBest ? 'bg-orange-500/10' : 'bg-slate-900'}`}>
+                <span className="font-bold text-sm flex items-center gap-2">
+                  {isBest && <Trophy size={12} className="text-yellow-400"/>}
+                  {labels[r.attempt] || `Etap ${r.attempt}`}
+                </span>
+                <span className={`font-black text-lg ${r.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(r.balance)}</span>
               </div>
-              <div className="grid grid-cols-2 gap-px bg-slate-800">
-                <div className="bg-slate-950 px-3 py-1 flex items-center gap-2">
-                  <span className="text-[9px] text-slate-600">Kucharz</span>
-                  <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${chefOee}%` }}/>
+              <div className="grid grid-cols-4 gap-px bg-slate-800">
+                {[
+                  { label: '🍕', val: r.baked, color: 'text-orange-400' },
+                  { label: '🗑', val: r.wipAtEnd, color: r.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500' },
+                  { label: 'OEE🔥', val: `${ovenOee}%`, color: ovenOee >= 70 ? 'text-green-400' : 'text-orange-400' },
+                  { label: 'OEE🍕', val: `${oeePiz}%`, color: oeePiz >= 50 ? 'text-green-400' : 'text-red-400' },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="bg-slate-950 px-2 py-1.5 text-center">
+                    <div className="text-[8px] text-slate-600">{label}</div>
+                    <div className={`text-sm font-bold ${color}`}>{val}</div>
                   </div>
-                  <span className="text-[9px] text-blue-400 font-bold">{chefOee}%</span>
-                </div>
-                <div className="bg-slate-950 px-3 py-1 flex items-center gap-2">
-                  <span className="text-[9px] text-slate-600">Piec</span>
-                  <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${ovenOee}%` }}/>
-                  </div>
-                  <span className="text-[9px] text-orange-400 font-bold">{ovenOee}%</span>
-                </div>
+                ))}
               </div>
             </div>
           );
         })}
       </div>
-      <div className="w-full max-w-lg mb-5 rounded-3xl overflow-hidden border border-orange-900 shadow-[0_0_30px_rgba(249,115,22,0.12)]">
+
+      {/* DBR karta */}
+      <div className="w-full max-w-lg rounded-3xl overflow-hidden border border-orange-900">
         <div className="bg-gradient-to-r from-orange-950 to-red-950 px-5 py-3 flex items-center gap-3">
           <span className="text-2xl">🥁</span>
           <div>
-            <p className="font-black text-orange-400 text-base">Co czułeś w ręku?</p>
-            <p className="text-orange-800 text-[9px] uppercase tracking-widest">Theory of Constraints · DBR</p>
+            <p className="font-black text-orange-400 text-base">Drum–Buffer–Rope</p>
+            <p className="text-orange-800 text-[9px] uppercase tracking-widest">Theory of Constraints</p>
           </div>
         </div>
-        <div className="bg-slate-900 px-5 py-4 space-y-3 text-sm leading-relaxed">
-          <p className="text-slate-200">To wibro przy każdej pizzy — to był <strong className="text-orange-400">rytm wąskiego gardła</strong>.</p>
-          <p className="text-slate-400">W TOC ten rytm ma nazwę: <strong className="text-white">Drum</strong> — bęben, który wybija tempo całej produkcji. Piec bije co <strong className="text-orange-400">3 sekundy</strong>. Nie szybciej, nie wolniej.</p>
-          <div className="border-t border-slate-800 pt-3">
-            <p className="text-orange-300 font-bold text-[10px] uppercase tracking-widest mb-2">Drum–Buffer–Rope</p>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              {[['🥁','Drum','text-orange-400','rytm pieca co 3s'],['🛡️','Buffer','text-blue-400','mały zapas przed piecem'],['🪢','Rope','text-green-400','hamuje kucharza = brak WIP']].map(([e,n,c,d]) => (
-                <div key={n} className="bg-slate-800 rounded-xl p-2.5">
-                  <p className="text-xl mb-1">{e}</p>
-                  <p className={`font-bold ${c}`}>{n}</p>
-                  <p className="text-slate-500 mt-0.5 leading-tight">{d}</p>
-                </div>
-              ))}
-            </div>
+        <div className="bg-slate-900 px-5 py-4">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            {[['🥁','Drum','text-orange-400','rytm pieca co 3s — etap 1'],['🛡️','Buffer','text-blue-400','zapas przed piecem — etap 2'],['🪢','Rope','text-green-400','limit WIP = synchronizacja — etap 3']].map(([e,n,c,d]) => (
+              <div key={n} className="bg-slate-800 rounded-xl p-2.5">
+                <p className="text-xl mb-1">{e}</p>
+                <p className={`font-bold ${c}`}>{n}</p>
+                <p className="text-slate-500 mt-0.5 leading-tight text-[9px]">{d}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
+
       <div className="flex flex-col gap-3 w-full max-w-sm">
         <button onClick={() => setShowOee(true)}
           className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
@@ -460,48 +400,306 @@ const ResultsTable = ({ history, onRestart }) => {
   );
 };
 
+// ─── FEEDBACK HELPERS ─────────────────────────────────────────────────────────
+const getFeedbackE1 = (r) => {
+  if (r.wipAtEnd === 0 && r.balance > 0)
+    return { icon: '🏆', color: '#4ade80', title: 'Świetna intuicja!', body: `Trafiłeś w rytm pieca bez żadnych wskazówek. ${r.baked} pizz upieczone, zero straty.` };
+  if (r.balance > 0 && r.wipAtEnd > 0)
+    return { icon: '⚠️', color: '#facc15', title: 'Udało się — ale...', body: `${r.wipAtEnd} pizz przepadło podczas awarii. Zarobiłeś ${fmt(r.balance)}, ale mogło być więcej. Co by było gdybyś wiedział kiedy zwolnić?` };
+  if (r.wipAtEnd > 5)
+    return { icon: '💥', color: '#ef4444', title: 'Aż tyle na blacie!', body: `${r.wipAtEnd} pizz czekało. Piec robi max 6 w 20s — reszta to czysta strata. Awaria zabrała wszystko.` };
+  return { icon: '📉', color: '#ef4444', title: 'Awaria zabrała zysk', body: `${r.wipAtEnd} × $${PENALTY_RATE} = $${r.wipAtEnd * PENALTY_RATE} kary. Piec nie nadążał za Twoim tempem klikania.` };
+};
+
+const getFeedbackE2 = (r, prev) => {
+  if (!prev) return { icon: '👀', color: '#378ADD', title: 'Widziałeś sygnały?', body: 'Kolory WIP podpowiadały kiedy zwolnić. Piec i tak nie przyspiesza — wąskie gardło dyktuje tempo.' };
+  const diff = r.balance - prev.balance;
+  if (diff > 0)
+    return { icon: '📈', color: '#4ade80', title: `+${fmt(diff)} vs etap 1!`, body: `Kolory pomogły — wynik wzrósł o ${fmt(diff)}. To właśnie Drum — piec wybija rytm całej produkcji.` };
+  if (diff === 0)
+    return { icon: '↔️', color: '#facc15', title: 'Taki sam wynik', body: 'Trudno zmienić nawyk klikania na podstawie koloru. W etapie 3 system zrobi to za Ciebie automatycznie.' };
+  return { icon: '🤔', color: '#f97316', title: 'Tym razem gorzej', body: 'Czasem świadomość przeszkadza. Etap 3 pokaże jak zsynchronizować produkcję z piecem bez walki z własnymi nawykami.' };
+};
+
+const getFeedbackE3 = (r, history) => {
+  const best = history.reduce((b, x) => x.balance > b.balance ? x : b, history[0]);
+  const isBest = r.balance >= best.balance;
+  const ropeInfo = r.ropeLimit ? `Limit WIP=${r.ropeLimit}` : 'Brak limitu';
+  if (isBest && r.wipAtEnd === 0)
+    return { icon: '🎯', color: '#4ade80', title: 'Idealna synchronizacja!', body: `${ropeInfo} — robot zsynchronizował produkcję z piecem. Zero straty, maksymalny przepływ. To DBR w praktyce.` };
+  if (isBest)
+    return { icon: '✅', color: '#4ade80', title: 'Najlepszy wynik!', body: `${ropeInfo} okazał się optymalny. Robot działał w rytmie pieca.` };
+  if (r.wipAtEnd > 3)
+    return { icon: '🔧', color: '#facc15', title: 'Limit za wysoki', body: `Przy WIP=${r.ropeLimit} blat był przeciążony. Spróbuj mniejszego limitu — bliżej rytmu pieca (1 pizza co 3s).` };
+  return { icon: '⬇️', color: '#f97316', title: 'Limit za niski', body: `Piec czekał na pizze. Przy WIP=${r.ropeLimit} robot był za bardzo ograniczony. Spróbuj wyższego limitu.` };
+};
+
 // ─── ATTEMPT RESULT ───────────────────────────────────────────────────────────
-const AttemptResult = ({ result, attempt, onNext, isLast }) => {
+const AttemptResult = ({ result, attempt, onNext, isLast, history, onRetry, onRepeatE3 }) => {
   const { chefOee, ovenOee } = calcOee(result);
+  const prevResult = history.length >= 2 ? history[history.length - 2] : null;
+
+  const feedback = attempt === 1 ? getFeedbackE1(result)
+                 : attempt === 2 ? getFeedbackE2(result, prevResult)
+                 : getFeedbackE3(result, history);
+
+  const needsRetry = attempt === 2 && prevResult && result.balance <= prevResult.balance;
+
+  const avail = 67;
+  const perf  = Math.min(100, Math.round((result.baked / MAX_BY_OVEN) * 100));
+  const total = result.baked + result.wipAtEnd;
+  const qual  = total === 0 ? 100 : Math.round((result.baked / total) * 100);
+  const oeePiz = Math.round(avail * perf * qual / 10000);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
-      <h2 className="text-base text-slate-500 uppercase tracking-widest mb-1">Wynik próby</h2>
-      <h1 className="text-5xl font-black mb-6 bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text text-transparent">#{result.attempt}</h1>
-      <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-6">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col p-5 pb-10 gap-4">
+
+      <div className="text-center pt-4">
+        <p className="text-[10px] text-slate-600 uppercase tracking-widest mb-1">Wynik etapu {attempt}</p>
+        <div className={`text-5xl font-black ${result.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+          {fmt(result.balance)}
+        </div>
+      </div>
+
+      {/* Liczby */}
+      <div className="grid grid-cols-4 gap-2">
         {[
-          { label: 'Zysk', value: fmt(result.balance), color: result.balance >= 0 ? 'text-green-400' : 'text-red-500' },
-          { label: 'Rekord CPS', value: result.maxCps, color: 'text-blue-400' },
           { label: '🍕 Upieczone', value: result.baked, color: 'text-orange-400' },
           { label: '🗑 WIP', value: result.wipAtEnd, color: result.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500' },
+          { label: 'OEE Piec', value: `${ovenOee}%`, color: ovenOee >= 70 ? 'text-green-400' : 'text-orange-400' },
+          { label: 'OEE 🍕', value: `${oeePiz}%`, color: oeePiz >= 50 ? 'text-green-400' : 'text-red-400' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
-            <p className="text-[9px] text-slate-500 uppercase mb-1">{label}</p>
-            <p className={`text-3xl font-black ${color}`}>{value}</p>
+          <div key={label} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 text-center">
+            <p className="text-[8px] text-slate-500 uppercase mb-1">{label}</p>
+            <p className={`text-xl font-black ${color}`}>{value}</p>
           </div>
         ))}
       </div>
-      <div className="w-full max-w-sm grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
-          <p className="text-[9px] text-slate-500 uppercase mb-1">OEE Kucharza</p>
-          <p className={`text-3xl font-black ${chefOee > 70 ? 'text-red-400' : 'text-blue-400'}`}>{chefOee}%</p>
-          <p className="text-[9px] text-slate-600 mt-1">vs rekord świata 10 CPS</p>
+
+      {/* Feedback dynamiczny */}
+      <div className="rounded-2xl border p-4 flex flex-col gap-2"
+        style={{ background: `${feedback.color}11`, borderColor: `${feedback.color}44` }}>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{feedback.icon}</span>
+          <span className="font-black text-base" style={{ color: feedback.color }}>{feedback.title}</span>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
-          <p className="text-[9px] text-slate-500 uppercase mb-1">OEE Pieca</p>
-          <p className={`text-3xl font-black ${ovenOee >= 70 ? 'text-green-400' : 'text-orange-400'}`}>{ovenOee}%</p>
-          <p className="text-[9px] text-slate-600 mt-1">czas pracy ÷ czas dostępny</p>
+        <p className="text-sm text-slate-300 leading-relaxed">{feedback.body}</p>
+      </div>
+
+      {/* Wiedza etapowa */}
+      {attempt === 1 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p className="text-[9px] text-orange-400 uppercase tracking-widest font-bold mb-2">🥁 Czym jest Drum?</p>
+          <p className="text-sm text-slate-400 leading-relaxed">Piec piecze jedną pizzę co 3 sekundy — nie szybciej. To <strong className="text-white">wąskie gardło</strong> które dyktuje tempo całej produkcji. W etapie 2 zobaczysz sygnały które to pokazują.</p>
+        </div>
+      )}
+      {attempt === 2 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p className="text-[9px] text-blue-400 uppercase tracking-widest font-bold mb-2">🛡️ Czym jest Buffer?</p>
+          <p className="text-sm text-slate-400 leading-relaxed">Mały zapas przed piecem (WIP 1-2) to <strong className="text-white">buffer</strong> — gwarantuje że piec nigdy nie czeka. Za dużo WIP to nadprodukcja. Za mało — piec stoi. W etapie 3 robot znajdzie balans.</p>
+        </div>
+      )}
+      {attempt === 3 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p className="text-[9px] text-green-400 uppercase tracking-widest font-bold mb-2">🪢 Czym jest Rope?</p>
+          <p className="text-sm text-slate-400 leading-relaxed">Rope to sygnał który <strong className="text-white">hamuje produkcję</strong> gdy buffer jest pełny. Łączy tempo kuchni z rytmem pieca. Razem: <strong className="text-orange-400">Drum–Buffer–Rope</strong> = synchronizacja całego systemu.</p>
+        </div>
+      )}
+
+      {/* Porównanie z poprzednią próbą */}
+      {prevResult && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+          <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-2">Porównanie z etapem {attempt - 1}</p>
+          <div className="flex items-center justify-between">
+            <div className="text-center">
+              <p className="text-[8px] text-slate-600">Etap {attempt - 1}</p>
+              <p className={`text-lg font-black ${prevResult.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(prevResult.balance)}</p>
+            </div>
+            <div className="text-2xl">
+              {result.balance > prevResult.balance ? '📈' : result.balance < prevResult.balance ? '📉' : '↔️'}
+            </div>
+            <div className="text-center">
+              <p className="text-[8px] text-slate-600">Etap {attempt}</p>
+              <p className={`text-lg font-black ${result.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(result.balance)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kwalifikacja E2→E3 */}
+      {needsRetry && (
+        <div className="bg-yellow-950 border border-yellow-800 rounded-2xl p-4">
+          <p className="text-[9px] text-yellow-400 uppercase tracking-widest font-bold mb-1">💡 Prawie!</p>
+          <p className="text-sm text-yellow-200 leading-relaxed mb-3">Wynik etapu 2 nie przekroczył etapu 1. Spróbuj jeszcze raz obserwując kolory WIP — lub przejdź dalej mimo wszystko.</p>
+          <div className="flex gap-2">
+            <button onClick={onRetry}
+              className="flex-1 py-3 rounded-full bg-yellow-600 hover:bg-yellow-500 font-black text-sm text-white transition-colors">
+              ↺ Spróbuj jeszcze raz
+            </button>
+            <button onClick={onNext}
+              className="flex-1 py-3 rounded-full bg-slate-700 hover:bg-slate-600 font-black text-sm text-slate-200 transition-colors">
+              Przejdź dalej →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Przycisk dalej */}
+      {!needsRetry && (
+        <div className="flex flex-col gap-2 mt-4">
+          {isLast && onRepeatE3 && (
+            <button onClick={onRepeatE3}
+              className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
+              <RotateCcw size={16} className="text-orange-400"/> Powtórz etap 3 (inny limit WIP)
+            </button>
+          )}
+          <button onClick={onNext}
+            className="flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-400 px-10 py-4 rounded-full font-black text-lg transition-colors">
+            {isLast ? <><Trophy size={18}/> Podsumowanie</> : <><ChevronRight size={18}/> Etap {attempt + 1}</>}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── ROPE SETUP ───────────────────────────────────────────────────────────────
+const RopeSetup = ({ initialRope, onStart }) => {
+  const [selected, setSelected] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [pulse, setPulse] = useState(true);
+
+  // Miganie przycisków dopóki nic nie wybrano
+  useEffect(() => {
+    if (selected !== null) { setPulse(false); return; }
+    const id = setInterval(() => setPulse(p => !p), 600);
+    return () => clearInterval(id);
+  }, [selected]);
+
+  const options = [null, 1, 2, 3, 4, 5];
+  const labels  = { null: '∞', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5' };
+
+  const desc = selected === null
+    ? 'Brak limitu — robot klika bez przerwy. Duże ryzyko nadprodukcji podczas awarii.'
+    : selected <= 2
+    ? `Limit ${selected} — bardzo mały bufor. Piec może czekać na pizze.`
+    : selected <= 3
+    ? `Limit ${selected} — dobry balans. Piec ma ciągłą dostawę, nie za dużo WIP.`
+    : `Limit ${selected} — spory bufor. Bezpieczniejszy, ale więcej straty podczas awarii.`;
+
+  const descColor = selected === null ? '#ef4444'
+    : selected <= 2 ? '#facc15'
+    : selected <= 3 ? '#4ade80'
+    : '#facc15';
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 gap-6">
+
+      {/* Header */}
+      <div className="text-center">
+        <div className="text-5xl mb-3">🪢</div>
+        <h1 className="text-2xl font-black text-white mb-1">Ustaw swój Rope</h1>
+        <p className="text-slate-500 text-sm">Zanim ruszy timer — wybierz maksymalny poziom WIP</p>
+      </div>
+
+      {/* Wyjaśnienie */}
+      <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-lg">🤖</span>
+          <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Jak działa etap 3?</span>
+        </div>
+        <p className="text-sm text-slate-300 leading-relaxed">
+          Robot będzie klikał za Ciebie — ale tylko gdy WIP jest <strong className="text-green-400">poniżej Twojego limitu</strong>.
+          Gdy blat jest pełny, robot zatrzymuje się i czeka aż piec opróżni kolejkę.
+        </p>
+        <div className="flex items-center gap-2 mt-1 p-2 rounded-xl" style={{ background: '#0d1520', border: '1px solid #1e3a5f' }}>
+          <span className="text-base">🥁</span>
+          <p className="text-xs text-blue-300">Piec piecze 1 pizzę co 3s. Ustaw limit tak, żeby zawsze miał co robić — ale nie za dużo!</p>
         </div>
       </div>
-      <button onClick={onNext}
-        className="flex items-center gap-3 bg-orange-500 hover:bg-orange-400 px-10 py-4 rounded-full font-black text-lg transition-colors">
-        {isLast ? <><Trophy size={18}/> Wyniki końcowe</> : <><ChevronRight size={18}/> Próba {attempt + 1}</>}
-      </button>
+
+      {/* Przyciski ROPE */}
+      <div className="w-full max-w-sm flex flex-col gap-3">
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest text-center">
+          {selected === null ? '👇 Kliknij żeby wybrać limit WIP' : '✓ Wybrałeś limit'}
+        </p>
+        <div className="flex gap-2">
+          {options.map(v => {
+            const key = v === null ? 'inf' : v;
+            const isSelected = selected === v;
+            const shouldPulse = pulse && selected === null;
+            return (
+              <button key={key}
+                onClick={() => { setSelected(v); setConfirmed(false); }}
+                className="flex-1 py-3 rounded-xl font-black text-lg transition-all"
+                style={{
+                  background: isSelected ? '#f97316' : '#1e293b',
+                  color: isSelected ? '#fff' : shouldPulse ? '#f97316' : '#475569',
+                  border: isSelected
+                    ? '2px solid #fb923c'
+                    : shouldPulse
+                    ? '2px solid #f9731688'
+                    : '2px solid #334155',
+                  boxShadow: isSelected
+                    ? '0 0 20px rgba(249,115,22,0.5)'
+                    : shouldPulse
+                    ? '0 0 10px rgba(249,115,22,0.2)'
+                    : 'none',
+                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                  transition: 'all 0.2s ease',
+                }}>
+                {v === null ? '∞' : v}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Opis wybranego limitu */}
+        {selected !== null && (
+          <div className="rounded-xl p-3 text-center transition-all"
+            style={{ background: `${descColor}11`, border: `1px solid ${descColor}44` }}>
+            <p className="text-sm font-bold" style={{ color: descColor }}>{desc}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Wizualizacja sygnału */}
+      {selected !== null && (
+        <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-3 text-center">Jak będzie działał sygnał</p>
+          <div style={{ position: 'relative', height: 40, display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'absolute', left: '5%', right: '5%', height: 2, background: '#1e293b', borderRadius: 2 }}/>
+            <div style={{ position: 'absolute', left: '5%', height: 2, width: '75%', background: '#4ade80', borderRadius: 2, boxShadow: '0 0 6px rgba(74,222,128,0.7)' }}/>
+            <div style={{ position: 'absolute', left: '3%', width: 10, height: 10, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px rgba(74,222,128,0.8)', transform: 'translateX(-50%)' }}/>
+            <div style={{ position: 'absolute', left: '3%', bottom: '100%', fontSize: 7, color: '#475569', whiteSpace: 'nowrap' }}>WIP &lt; {selected ?? '∞'}</div>
+            <div style={{ position: 'absolute', left: '78%', top: '50%', transform: 'translate(-50%,-50%)', fontSize: 20, animation: 'robotBounce 0.3s ease-in-out infinite alternate' }}>🤖</div>
+            <div style={{ position: 'absolute', right: '3%', width: 10, height: 10, borderRadius: '50%', background: '#f97316', boxShadow: '0 0 8px rgba(249,115,22,0.8)', transform: 'translateX(50%)' }}/>
+          </div>
+        </div>
+      )}
+
+      {/* START */}
+      {selected !== null && (
+        <button
+          onClick={() => onStart(selected)}
+          className="w-full max-w-sm py-4 rounded-full font-black text-xl text-white transition-all active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg,#f97316,#ea580c)',
+            boxShadow: '0 0 30px rgba(249,115,22,0.5)',
+          }}>
+          🚀 START — Etap 3
+        </button>
+      )}
+
+      <style>{`
+        @keyframes robotBounce { from{transform:translate(-50%,-50%) translateY(0)} to{transform:translate(-50%,-50%) translateY(-5px)} }
+      `}</style>
     </div>
   );
 };
 
 // ─── GAME SCREEN ──────────────────────────────────────────────────────────────
-const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
+const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
   const [timeLeft,     setTimeLeft]    = useState(GAME_DURATION);
   const [balance,      setBalance]     = useState(0);
   const [taps,         setTaps]        = useState(0);
@@ -512,7 +710,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
   const [baked,        setBaked]       = useState(0);
   const [powerOutage,  setPowerOutage] = useState(false);
   const [showOutage,   setShowOutage]  = useState(false);
-  const [ropeLimit,    setRopeLimit]   = useState(3); // null = ∞
+  const [ropeLimit,    setRopeLimit]   = useState(initialRope ?? 3);
   const autoIntervalRef = useRef(null);
 
   const balanceRef      = useRef(0);
@@ -526,9 +724,9 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
   const lastTapRef      = useRef(0);
   const ovenTimerRef    = useRef(null);
   const progIntervalRef = useRef(null);
-
   const ovenRef         = useRef(false);
   const ovenAtOutageRef = useRef(false);
+
   const updBalance = (v) => { balanceRef.current = v; setBalance(v); };
   const updWip     = (v) => { wipRef.current = v;     setWip(v); };
   const updBaked   = (v) => { bakedRef.current = v;   setBaked(v); };
@@ -553,14 +751,12 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
       setPizzaPhase('enter');
       audio.whoosh();
       setTimeout(() => setPizzaPhase('baking'), 400);
-
       let prog = 0;
       setOvenProgress(0);
       progIntervalRef.current = setInterval(() => {
         prog += 50 / OVEN_MS;
         setOvenProgress(Math.min(prog, 1));
       }, 50);
-
       ovenTimerRef.current = setTimeout(() => {
         clearInterval(progIntervalRef.current);
         setPizzaPhase('exit');
@@ -627,9 +823,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     const penalty = finalWip * PENALTY_RATE;
     const finalBalance = earnedFromBaking - penalty;
     return onFinish({
-    attempt, balance: finalBalance, maxCps: maxCpsRef.current,
-    baked: bakedRef.current, wipAtEnd: finalWip, totalTaps: totalTapsRef.current,
-  });
+      attempt, balance: finalBalance, maxCps: maxCpsRef.current,
+      baked: bakedRef.current, wipAtEnd: finalWip, totalTaps: totalTapsRef.current,
+      ropeLimit: attempt >= 3 ? ropeLimit : null,
+    });
   };
 
   const handleOutageUnlock = () => {
@@ -657,7 +854,6 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
     });
   }, []);
 
-  // Auto-klikacz — zawsze aktywny w próbie 3+, klika gdy WIP < ropeLimit
   useEffect(() => {
     if (attempt < 3) return;
     autoIntervalRef.current = setInterval(() => {
@@ -692,7 +888,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
           {fmt(balance)}
         </div>
         <div className="flex flex-col items-end">
-          <p className="text-[8px] text-slate-600 uppercase tracking-widest">Próba {attempt}/3</p>
+          <p className="text-[8px] text-slate-600 uppercase tracking-widest">Etap {attempt}/3</p>
           <div className={`text-4xl font-black font-mono tabular-nums leading-none ${isOutage ? 'text-red-500 animate-pulse' : timeLeft <= 15 ? 'text-orange-400' : 'text-white'}`}>
             {timeLeft}<span className="text-sm text-slate-500">s</span>
           </div>
@@ -707,50 +903,51 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
         <>
           <div className="flex items-center gap-2">
             <div className="flex-1 flex flex-col gap-1">
-              {/* STATUS BAR — tylko próba 2+ */}
               {attempt >= 2 && (
-              <div className={`flex items-center justify-between px-2 py-1 rounded-lg transition-all duration-300
-                ${wip === 0 || wip > 4 ? 'bg-red-950 border border-red-800' : wip <= 2 ? 'bg-green-950 border border-green-800' : 'bg-yellow-950 border border-yellow-800'}`}>
-                <div className="flex items-center gap-1.5">
-                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0
-                    ${wip === 0 || wip > 4 ? 'bg-red-500' : wip <= 2 ? 'bg-green-400' : 'bg-yellow-400'}`}
-                    style={wip > 4 ? { animation: 'pulse 0.6s ease-in-out infinite' } : {}}/>
-                  <span className={`text-[9px] font-bold uppercase tracking-wide
-                    ${wip <= 2 ? 'text-green-400' : wip <= 4 ? 'text-yellow-400' : 'text-red-400'}`}>
-                    {wip === 0 ? '✕ niebezpiecznie niski poziom' : wip <= 2 ? '✓ ok — bezpieczny poziom' : wip <= 4 ? '⚠ uwaga — poziom wzrasta' : '✕ niebezpiecznie wysoki'}
+                <div className={`flex items-center justify-between px-2 py-1 rounded-lg transition-all duration-300
+                  ${wip === 0 || wip > 4 ? 'bg-red-950 border border-red-800' : wip <= 2 ? 'bg-green-950 border border-green-800' : 'bg-yellow-950 border border-yellow-800'}`}>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0
+                      ${wip === 0 || wip > 4 ? 'bg-red-500' : wip <= 2 ? 'bg-green-400' : 'bg-yellow-400'}`}
+                      style={wip > 4 ? { animation: 'pulse 0.6s ease-in-out infinite' } : {}}/>
+                    <span className={`text-[9px] font-bold uppercase tracking-wide
+                      ${wip === 0 || wip > 4 ? 'text-red-400' : wip <= 2 ? 'text-green-400' : 'text-yellow-400'}`}>
+                      {wip === 0 ? '✕ niebezpiecznie niski poziom' : wip <= 2 ? '✓ ok — bezpieczny poziom' : wip <= 4 ? '⚠ uwaga — poziom wzrasta' : '✕ niebezpiecznie wysoki'}
+                    </span>
+                  </div>
+                  <span className={`text-[9px] font-bold
+                    ${wip === 0 || wip > 4 ? 'text-red-400' : wip <= 2 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {wip}
                   </span>
                 </div>
-                <span className={`text-[9px] font-bold
-                  ${wip === 0 || wip > 4 ? 'text-red-400' : wip <= 2 ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {wip}
-                </span>
-              </div>
               )}
-            <div className={`flex-1 bg-orange-950 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1 transition-all duration-150
-              ${attempt >= 2
-                ? wip === 0  ? 'border-2 border-green-700'
-                : wip <= 2   ? 'border-2 border-green-500 shadow-[0_0_8px_rgba(74,222,128,0.5)]'
-                : wip <= 4   ? 'border-2 border-yellow-500 shadow-[0_0_8px_rgba(250,204,21,0.5)]'
-                :              'border-2 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]'
-                : 'border border-orange-900'
-              }
-              ${attempt >= 2 && taps > 0 ? 'scale-[1.02]' : 'scale-100'}
-            `}>
-              <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
-              <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
-                {wip === 0 && <span className="text-orange-900 text-[9px] italic">pusty blat</span>}
-                {[...Array(Math.min(wip, 12))].map((_, i) => (
-                  <div key={i} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${wip >= 4 ? 'border-orange-400 bg-orange-900 animate-pulse' : 'border-orange-700 bg-orange-950'}`}>🫓</div>
-                ))}
-                {wip > 8 && <span className="text-orange-400 text-[9px] font-bold">+{wip-8}</span>}
+              <div className={`flex-1 bg-orange-950 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1 transition-all duration-150
+                ${attempt >= 2
+                  ? wip === 0  ? 'border-2 border-green-700'
+                  : wip <= 2   ? 'border-2 border-green-500 shadow-[0_0_8px_rgba(74,222,128,0.5)]'
+                  : wip <= 4   ? 'border-2 border-yellow-500 shadow-[0_0_8px_rgba(250,204,21,0.5)]'
+                  :              'border-2 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]'
+                  : 'border border-orange-900'
+                }
+                ${attempt >= 2 && taps > 0 ? 'scale-[1.02]' : 'scale-100'}
+              `}>
+                <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
+                <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
+                  {wip === 0 && <span className="text-orange-900 text-[9px] italic">pusty blat</span>}
+                  {[...Array(Math.min(wip, 12))].map((_, i) => (
+                    <div key={i} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${wip >= 4 ? 'border-orange-400 bg-orange-900 animate-pulse' : 'border-orange-700 bg-orange-950'}`}>🫓</div>
+                  ))}
+                  {wip > 8 && <span className="text-orange-400 text-[9px] font-bold">+{wip-8}</span>}
+                </div>
+                <span className="text-[8px] text-orange-800">{wip} szt.</span>
               </div>
-              <span className="text-[8px] text-orange-800">{wip} szt.</span>
             </div>
-            </div>
+
             <div className="flex flex-col items-center flex-shrink-0">
               {showTrafficLight && <TrafficLightMini ovenActive={ovenActive}/>}
               <OvenSVG active={ovenActive} progress={ovenProgress} pizzaPhase={pizzaPhase}/>
             </div>
+
             <div className="flex-1 bg-green-950 border border-green-900 rounded-2xl p-2 min-h-[100px] flex flex-col gap-1">
               <span className="text-[7px] text-green-800 uppercase tracking-widest font-bold">⬤ Gotowe</span>
               <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
@@ -764,11 +961,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
             </div>
           </div>
 
-          {/* ROPE + AUTO — tylko próba 3+ */}
           {attempt >= 3 ? (
             <div className="flex flex-col gap-2">
-
-              {/* ROPE regulator */}
               <div className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">🪢 Rope — limit WIP</span>
@@ -787,11 +981,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
                 </div>
               </div>
 
-              {/* SIGNAL LINE: WIP → 🤖 → przycisk */}
               <div style={{ position: 'relative', height: 44, display: 'flex', alignItems: 'center' }}>
-                {/* Linia tło */}
                 <div style={{ position: 'absolute', left: '10%', right: '10%', height: 2, background: '#1e293b', borderRadius: 2 }}/>
-                {/* Linia aktywna */}
                 <div style={{
                   position: 'absolute', left: '10%', height: 2, borderRadius: 2,
                   width: ropeLimit !== null && wip >= ropeLimit ? '35%' : '80%',
@@ -799,12 +990,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
                   boxShadow: ropeLimit !== null && wip >= ropeLimit ? '0 0 6px rgba(239,68,68,0.7)' : '0 0 6px rgba(74,222,128,0.7)',
                   transition: 'all 0.4s ease'
                 }}/>
-                {/* Dot WIP */}
-                <div style={{ position: 'absolute', left: '8%', width: 10, height: 10, borderRadius: '50%', background: ropeLimit !== null && wip >= ropeLimit ? '#ef4444' : '#4ade80', boxShadow: '0 0 8px currentColor', transform: 'translateX(-50%)' }}/>
-                {/* Label WIP */}
+                <div style={{ position: 'absolute', left: '8%', width: 10, height: 10, borderRadius: '50%', background: ropeLimit !== null && wip >= ropeLimit ? '#ef4444' : '#4ade80', transform: 'translateX(-50%)' }}/>
                 <div style={{ position: 'absolute', left: '10%', top: 0, fontSize: 7, color: '#475569', textTransform: 'uppercase' }}>WIP</div>
-
-                {/* Robot 🤖 — jedzie po linie */}
                 <div style={{
                   position: 'absolute',
                   left: ropeLimit !== null && wip >= ropeLimit ? '40%' : '82%',
@@ -814,13 +1001,9 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight }) => {
                   animation: ropeLimit !== null && wip >= ropeLimit ? 'robotWarn 0.35s ease-in-out infinite alternate' : 'robotBounce 0.2s ease-in-out infinite alternate',
                   zIndex: 2,
                 }}>🤖</div>
-
-                {/* Label status */}
                 <div style={{ position: 'absolute', right: '10%', top: 0, fontSize: 7, color: '#475569', textTransform: 'uppercase' }}>PRZYCISK</div>
-                {/* Dot przycisk */}
                 <div style={{ position: 'absolute', right: '8%', width: 10, height: 10, borderRadius: '50%', background: ropeLimit !== null && wip >= ropeLimit ? '#334155' : '#f97316', boxShadow: ropeLimit !== null && wip >= ropeLimit ? 'none' : '0 0 8px rgba(249,115,22,0.8)', transform: 'translateX(50%)' }}/>
               </div>
-
             </div>
           ) : (
             <div style={{ height: 120 }}/>
@@ -868,6 +1051,7 @@ export default function PizzaTOC() {
   const [attempt,    setAttempt]    = useState(1);
   const [history,    setHistory]    = useState([]);
   const [lastResult, setLastResult] = useState(null);
+  const [initialRope, setInitialRope] = useState(3);
   const MAX_ATTEMPTS = 3;
 
   const handleFinish = (result) => {
@@ -877,7 +1061,14 @@ export default function PizzaTOC() {
     setPhase(attempt >= MAX_ATTEMPTS ? 'FINAL' : 'ATTEMPT_RESULT');
   };
 
-  const handleNext    = () => { setAttempt(a => a + 1); setPhase('PLAYING'); };
+  const handleNext  = () => {
+    const next = attempt + 1;
+    setAttempt(next);
+    if (next === 3) { setPhase('ROPE_SETUP'); }
+    else { setPhase('PLAYING'); }
+  };
+  const handleRetry    = () => { setPhase('PLAYING'); };
+  const handleRepeatE3  = () => { setPhase('ROPE_SETUP'); };
   const handleRestart = () => { setPhase('START'); setAttempt(1); setHistory([]); setLastResult(null); };
 
   if (phase === 'START') return (
@@ -906,18 +1097,33 @@ export default function PizzaTOC() {
       <button onClick={() => setPhase('PLAYING')}
         className="font-black text-lg text-white px-10 py-4 rounded-2xl transition-all active:scale-95"
         style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', boxShadow: '0 0 30px rgba(249,115,22,0.5)', letterSpacing: '0.03em' }}>
-        [ START: PRÓBA 1 — SPRAWDŹ SIĘ ]
+        [ START: ETAP 1 — SPRAWDŹ SIĘ ]
       </button>
       <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
     </div>
   );
 
+  if (phase === 'ROPE_SETUP') return (
+    <RopeSetup
+      initialRope={initialRope}
+      onStart={(rope) => { setInitialRope(rope); setPhase('PLAYING'); }}
+    />
+  );
+
   if (phase === 'PLAYING') return (
-    <GameScreen key={attempt} attempt={attempt} onFinish={handleFinish} showTrafficLight={attempt >= 2}/>
+    <GameScreen key={`${attempt}-${history.length}`} attempt={attempt} onFinish={handleFinish} showTrafficLight={attempt >= 2} initialRope={initialRope}/>
   );
 
   if (phase === 'ATTEMPT_RESULT') return (
-    <AttemptResult result={lastResult} attempt={attempt} onNext={handleNext} isLast={attempt >= MAX_ATTEMPTS}/>
+    <AttemptResult
+      result={lastResult}
+      attempt={attempt}
+      onNext={handleNext}
+      onRetry={handleRetry}
+      onRepeatE3={attempt >= MAX_ATTEMPTS ? handleRepeatE3 : undefined}
+      isLast={attempt >= MAX_ATTEMPTS}
+      history={history}
+    />
   );
 
   if (phase === 'FINAL') return (
