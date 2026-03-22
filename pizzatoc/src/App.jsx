@@ -429,36 +429,37 @@ const ResultsTable = ({ history, attempt, onRestart, onContinue, onRepeatE3, onR
 
 // ─── FEEDBACK HELPERS ─────────────────────────────────────────────────────────
 const getFeedbackE1 = (r) => {
+  const maxPossible = r.baked * PIZZA_VAL;
+  const lostPct = maxPossible > 0 ? Math.round((r.wipAtEnd * PENALTY_RATE) / maxPossible * 100) : 0;
   if (r.wipAtEnd === 0 && r.balance > 0)
-    return { icon: '🏆', color: '#4ade80', title: 'Świetna intuicja!', body: `Trafiłeś w rytm pieca bez żadnych wskazówek. ${r.baked} pizz upieczone, zero straty.` };
+    return { icon: '🏆', color: '#4ade80', title: 'Świetna intuicja!', body: `Wyczułeś tempo maszyny. Upiekłeś ${r.baked} pizz bez robienia bałaganu na blacie. Zero strat, czysty zysk!` };
   if (r.balance > 0 && r.wipAtEnd > 0)
-    return { icon: '⚠️', color: '#facc15', title: 'Udało się — ale...', body: `${r.wipAtEnd} pizz przepadło podczas awarii. Zarobiłeś ${fmt(r.balance)}, ale mogło być więcej. Co by było gdybyś wiedział kiedy zwolnić?` };
+    return { icon: '⚠️', color: '#facc15', title: 'Udało się, ale...', body: `Zarobiłeś ${fmt(r.balance)}, ale ${r.wipAtEnd} pizz wylądowało w koszu przez awarię. Gdybyś zwolnił, Twój zysk byłby o ${lostPct}% wyższy.` };
   if (r.wipAtEnd > 5)
-    return { icon: '💥', color: '#ef4444', title: 'Aż tyle na blacie!', body: `${r.wipAtEnd} pizz czekało. Piec robi max 6 w 20s — reszta to czysta strata. Awaria zabrała wszystko.` };
-  return { icon: '📉', color: '#ef4444', title: 'Awaria zabrała zysk', body: `${r.wipAtEnd} × $${PENALTY_RATE} = $${r.wipAtEnd * PENALTY_RATE} kary. Piec nie nadążał za Twoim tempem klikania.` };
+    return { icon: '💥', color: '#ef4444', title: 'Zapchany blat!', body: `Piec robi max 6 pizz w tym czasie, a Ty uklepałeś ich ${r.wipAtEnd} na blacie. Reszta to tylko „mrożenie gotówki", którą zabrała awaria.` };
+  return { icon: '📉', color: '#ef4444', title: 'Awaria zjadła zysk', body: `Straciłeś $${r.wipAtEnd * PENALTY_RATE} przez nadprodukcję. Klikałeś dla samej frajdy klikania, a piec i tak robił swoje.` };
 };
 
 const getFeedbackE2 = (r, prev) => {
-  if (!prev) return { icon: '👀', color: '#378ADD', title: 'Widziałeś sygnały?', body: 'Kolory WIP podpowiadały kiedy zwolnić. Piec i tak nie przyspiesza — wąskie gardło dyktuje tempo.' };
+  if (!prev) return { icon: '👀', color: '#378ADD', title: 'Widziałeś kolory?', body: 'Reagowałeś na czerwony alert na blacie. Zrozumiałeś, że nie opłaca się „produkować na zapas".' };
   const diff = r.balance - prev.balance;
   if (diff > 0)
-    return { icon: '📈', color: '#4ade80', title: `+${fmt(diff)} vs etap 1!`, body: `Kolory pomogły — wynik wzrósł o ${fmt(diff)}. To właśnie Drum — piec wybija rytm całej produkcji.` };
+    return { icon: '📈', color: '#4ade80', title: `+${fmt(diff)} względem Etapu 1!`, body: `Uważne patrzenie na blat podniosło Twój zysk. To jest Buffer w praktyce — chronisz piec, ale nie przeginasz.` };
   if (diff === 0)
-    return { icon: '↔️', color: '#facc15', title: 'Taki sam wynik', body: 'Trudno zmienić nawyk klikania na podstawie koloru. W etapie 3 system zrobi to za Ciebie automatycznie.' };
-  return { icon: '🤔', color: '#f97316', title: 'Tym razem gorzej', body: 'Czasem świadomość przeszkadza. Etap 3 pokaże jak zsynchronizować produkcję z piecem bez walki z własnymi nawykami.' };
+    return { icon: '↔️', color: '#facc15', title: 'Nawyk silniejszy niż wiedza', body: 'Wynik podobny do E1. Trudno przestać klikać, gdy palce same rwą się do roboty, prawda? W E3 system Cię wyręczy.' };
+  return { icon: '🤔', color: '#f97316', title: 'Chaos wygrał', body: 'Czasem skupienie na kolorach rozprasza. Spokojnie, w następnym etapie „Lina" (Rope) automatycznie zsynchronizuje Twoje tempo.' };
 };
 
 const getFeedbackE3 = (r, history) => {
   const best = history.reduce((b, x) => x.balance > b.balance ? x : b, history[0]);
   const isBest = r.balance >= best.balance;
-  const ropeInfo = r.ropeLimit ? `Limit WIP=${r.ropeLimit}` : 'Brak limitu';
   if (isBest && r.wipAtEnd === 0)
-    return { icon: '🎯', color: '#4ade80', title: 'Idealna synchronizacja!', body: `${ropeInfo} — robot zsynchronizował produkcję z piecem. Zero straty, maksymalny przepływ. To DBR w praktyce.` };
+    return { icon: '🎯', color: '#4ade80', title: 'Idealna synchronizacja!', body: `Limit WIP=${r.ropeLimit} sprawił, że pizzeria działała jak szwajcarski zegarek. Zero straty, maksymalny przepływ.` };
   if (isBest)
-    return { icon: '✅', color: '#4ade80', title: 'Najlepszy wynik!', body: `${ropeInfo} okazał się optymalny. Robot działał w rytmie pieca.` };
+    return { icon: '✅', color: '#4ade80', title: 'Rekordowy wynik!', body: `Dzięki blokadzie przycisku (Rope), piec pracował non-stop, a Ty nie straciłeś ani centa podczas awarii.` };
   if (r.wipAtEnd > 3)
-    return { icon: '🔧', color: '#facc15', title: 'Limit za wysoki', body: `Przy WIP=${r.ropeLimit} blat był przeciążony. Spróbuj mniejszego limitu — bliżej rytmu pieca (1 pizza co 3s).` };
-  return { icon: '⬇️', color: '#f97316', title: 'Limit za niski', body: `Piec czekał na pizze. Przy WIP=${r.ropeLimit} robot był za bardzo ograniczony. Spróbuj wyższego limitu.` };
+    return { icon: '🔧', color: '#facc15', title: 'Bufor zbyt duży', body: `Przy WIP=${r.ropeLimit} na blacie wciąż było za ciasno. Podczas awarii wciąż ryzykujesz stratę. Spróbuj WIP=1 lub 2.` };
+  return { icon: '⬇️', color: '#f97316', title: 'Bufor zbyt mały', body: `Piec stał pusty! Limit WIP=${r.ropeLimit} był zbyt ostrożny. Wąskie gardło musi mieć zawsze mały zapas, by nigdy nie przestało zarabiać.` };
 };
 
 // ─── ATTEMPT RESULT ───────────────────────────────────────────────────────────
@@ -611,18 +612,18 @@ const EduScreen = ({ result, attempt, history, onNext }) => {
   const ltCol   = simLt <= 3 ? '#4ade80' : simLt <= 9 ? '#eab308' : '#ef4444';
 
   const knowledge = {
-    1: { icon: '🥁', color: '#f97316', title: 'Czym jest Drum?',
-         body: 'Piec piecze jedną pizzę co 3 sekundy — nie szybciej. To wąskie gardło które dyktuje tempo całej produkcji. Kucharz może klepać ile chce — piec i tak bije własnym rytmem.',
-         sim: true, simTitle: 'Co się dzieje gdy produkujesz bez limitu?' },
-    2: { icon: '🛡️', color: '#378ADD', title: 'Czym jest Buffer?',
-         body: 'Mały zapas przed piecem (WIP 1-2) gwarantuje że piec nigdy nie czeka. Za dużo WIP to nadprodukcja i ryzyko straty. Za mało — piec stoi i traci czas.',
-         sim: false },
-    3: { icon: '🪢', color: '#4ade80', title: 'Czym jest Rope?',
-         body: 'Rope hamuje produkcję gdy buffer jest pełny. Synchronizuje tempo kuchni z rytmem pieca. Razem Drum–Buffer–Rope = zsynchronizowany system bez zbędnego WIP.',
-         sim: true, simTitle: 'Rope vs brak limitu — co się dzieje z LT?' },
-    4: { icon: '📊', color: '#7c3aed', title: 'OEE i Lead Time',
-         body: 'OEE mierzy efektywność systemu — Dostępność × Wydajność × Jakość. Lead Time to czas od blatu do gotowego. Im więcej WIP → dłuższy LT → większe ryzyko podczas awarii.',
-         sim: true, simTitle: 'Obserwuj jak WIP eksploduje LT' },
+    1: { icon: '🥁', color: '#f97316', title: 'Czym jest Drum (Bęben)?',
+         body: 'To Twoje Wąskie Gardło — Piec. On „wybija takt" całej pizzerii. Nie zarobisz ani grosza więcej, niż pozwoli na to Piec. Jeśli kucharz pracuje szybciej niż bije bęben — tworzy się zator.',
+         sim: true, simTitle: 'Chaos — produkcja bez żadnych limitów.' },
+    2: { icon: '🛡️', color: '#378ADD', title: 'Czym jest Buffer (Bufor)?',
+         body: 'To zapas przed piecem. Musi być „w sam raz" — na tyle duży, by piec miał co robić, i na tyle mały, by nie stracić majątku, gdy „zgaśnie światło" (awaria).',
+         sim: false, simTitle: 'Świadomość — reaguj na sygnały z blatu.' },
+    3: { icon: '🪢', color: '#4ade80', title: 'Czym jest Rope (Lina)?',
+         body: 'To mechanizm, który mówi kucharzowi: „STOP, nie klep kolejnej pizzy, bufor jest pełny!". Lina łączy tempo kucharza z tempem pieca. Dzięki niej nie marnujesz energii na nadprodukcję.',
+         sim: true, simTitle: 'Synchronizacja — Rope przejmuje kontrolę nad tempem.' },
+    4: { icon: '📊', color: '#7c3aed', title: 'Lead Time (Czas Przelotu)',
+         body: 'LT to czas, jaki pizza spędza w Twojej pizzerii. WIP (Zapas) to wróg Lead Time! Im więcej pizz na blacie, tym dłużej każda z nich czeka na swoją kolej. Krótki LT = błyskawiczna sprzedaż i brak strat.',
+         sim: true, simTitle: 'Optymalizacja — jak WIP wpływa na czas realizacji (Lead Time)?' },
   };
   const k = knowledge[attempt] || knowledge[4];
 
