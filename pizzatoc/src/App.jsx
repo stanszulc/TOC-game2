@@ -876,9 +876,9 @@ const E2Intro = ({ onStart }) => (
     </div>
 
     <button onClick={onStart}
-      className="w-full py-4 rounded-full font-black text-xl text-white mt-auto transition-all active:scale-95"
+      className="w-full py-4 rounded-full font-black text-xl text-white mt-auto transition-all active:scale-95 flex items-center justify-center gap-2"
       style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', boxShadow: '0 0 24px rgba(249,115,22,0.4)' }}>
-      START — Etap 2
+      <ChevronRight size={20}/> START — Etap 2
     </button>
   </div>
 );
@@ -895,60 +895,31 @@ const E4Setup = ({ onStart }) => {
   }, [selected]);
 
   const options = [null,1,2,3,4,5];
-
+  const descColor = selected === null ? '#ef4444' : selected <= 2 ? '#facc15' : selected <= 3 ? '#4ade80' : '#facc15';
   const desc = selected === null ? null
-    : selected === null ? 'Brak limitu — ryzyko maksymalne, LT rośnie bez ograniczeń.'
     : selected <= 2 ? `Limit ${selected} — krótki LT, minimalne ryzyko. Piec może czekać.`
     : selected <= 3 ? `Limit ${selected} — optymalny balans LT i przepływu.`
     : `Limit ${selected} — długi LT, wysokie ryzyko podczas awarii.`;
 
-  const descColor = selected === null ? '#ef4444'
-    : selected <= 2 ? '#facc15' : selected <= 3 ? '#4ade80' : '#facc15';
-
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col p-6 gap-5">
       <div className="text-center pt-4">
-        <div style={{ fontSize:40, marginBottom:8 }}>⚡</div>
+        <div style={{ fontSize:40, marginBottom:8 }}>📊</div>
         <h1 className="text-2xl font-black mb-1" style={{ background:'linear-gradient(135deg,#7c3aed,#818cf8)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
-          Etap 4 — tryb PRO
+          Tryb PRO — pełny wgląd
         </h1>
-        <p className="text-slate-500 text-sm">Teraz widzisz wszystko — ustaw Rope i obserwuj wskaźniki live</p>
+        <p className="text-slate-500 text-sm">Etap 4 — zobaczysz jak WIP wpływa na czas i efektywność</p>
       </div>
 
-      {/* Przepływ pizzy */}
+      {/* LT wyjaśnienie */}
       <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
-        <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">🔄 Przepływ pizzy</p>
-        <div className="flex items-center gap-1 text-center">
-          {[
-            { icon:'👆', label:'Tapujesz', sub:'5 tapów', color:'#f97316' },
-            { icon:'→', label:'', sub:'', color:'#475569' },
-            { icon:'🫓', label:'Blat WIP', sub:'kolejka', color:'#facc15' },
-            { icon:'→', label:'', sub:'', color:'#475569' },
-            { icon:'🔥', label:'Piec', sub:'3s / pizza', color:'#ef4444' },
-            { icon:'→', label:'', sub:'', color:'#475569' },
-            { icon:'🍕', label:'Gotowe', sub:'+$100', color:'#4ade80' },
-          ].map((s, i) => s.label === '' ? (
-            <div key={i} style={{ fontSize:14, color:s.color, flexShrink:0 }}>→</div>
-          ) : (
-            <div key={i} style={{ flex:1, background:'#0d1520', border:`0.5px solid ${s.color}44`, borderRadius:8, padding:'6px 4px' }}>
-              <div style={{ fontSize:16 }}>{s.icon}</div>
-              <div style={{ fontSize:8, fontWeight:700, color:s.color }}>{s.label}</div>
-              <div style={{ fontSize:7, color:'#475569' }}>{s.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Lead Time */}
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-2">
-        <p className="text-[10px] text-blue-400 uppercase tracking-widest font-bold">⏱ Lead Time — czas przejścia</p>
+        <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">⏱ Czym jest Lead Time?</p>
         <p className="text-sm text-slate-300 leading-relaxed">
-          LT to czas od momentu gdy pizza trafia na blat do momentu gdy wychodzi z pieca.
-          Każda pizza w kolejce dodaje <strong className="text-orange-400">+3 sekundy</strong> czekania.
+          <strong className="text-purple-300">Lead Time (LT)</strong> to czas od momentu gdy pizza trafia na blat do chwili gdy opuszcza piec. Im więcej pizz w kolejce — tym dłużej każda czeka.
         </p>
-        <div className="flex gap-2 mt-1">
-          {[[1,'3s','#4ade80','WIP=0'],[3,'9s','#eab308','WIP=2'],[6,'18s','#ef4444','WIP=5']].map(([w,lt,c,lbl]) => (
-            <div key={w} style={{ flex:1, background:'#0d1520', border:`0.5px solid ${c}44`, borderRadius:8, padding:'6px 4px', textAlign:'center' }}>
+        <div className="flex gap-2">
+          {[['WIP=1','6s','#4ade80'],['WIP=3','12s','#eab308'],['WIP=8','27s','#ef4444']].map(([lbl,lt,c]) => (
+            <div key={lbl} style={{ flex:1, background:'#0d1520', border:`0.5px solid ${c}44`, borderRadius:8, padding:'6px 4px', textAlign:'center' }}>
               <div style={{ fontSize:13, fontWeight:700, color:c, fontFamily:'monospace' }}>{lt}</div>
               <div style={{ fontSize:7, color:'#475569' }}>{lbl}</div>
             </div>
@@ -957,9 +928,48 @@ const E4Setup = ({ onStart }) => {
         <p className="text-xs text-slate-500">Im mniej WIP → krótszy LT → szybszy przepływ → mniejsze ryzyko podczas awarii.</p>
       </div>
 
+      {/* LT wizualizacja */}
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
+        <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">📈 Co pojawi się na ekranie — Lead Time per pizza</p>
+        <p className="text-xs text-slate-400 leading-relaxed">Każda upieczona pizza ma swój pasek LT. Obserwuj jak rosną gdy bufor się zapycha.</p>
+        {/* Przykładowe 3 pizze z narastającym LT */}
+        <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+          {/* Gruba kreska — średni LT pizzerii */}
+          <div style={{ background:'#0d1520', border:'0.5px solid #7c3aed44', borderRadius:8, padding:'6px 10px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+              <span style={{ fontSize:8, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 }}>Avg LT pizzerii</span>
+              <span style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#eab308' }}>9s</span>
+            </div>
+            <div style={{ height:9, background:'#1e293b', borderRadius:3 }}>
+              <div style={{ height:'100%', borderRadius:3, background:'#eab308', width:'33%' }}/>
+            </div>
+          </div>
+          {/* 3 przykładowe pizze */}
+          {[['#1','6s','20%','#4ade80'],['#2','9s','33%','#eab308'],['#3','15s','55%','#ef4444']].map(([n,lt,w,c]) => (
+            <div key={n} style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:9, color:'#475569', fontFamily:'monospace', minWidth:16 }}>{n}</span>
+              <span style={{ fontSize:10 }}>🍕</span>
+              <div style={{ flex:1, height:3, background:'#1e293b', borderRadius:2 }}>
+                <div style={{ height:'100%', borderRadius:2, background:c, width:w }}/>
+              </div>
+              <span style={{ fontSize:9, fontWeight:700, fontFamily:'monospace', color:c, minWidth:24, textAlign:'right' }}>{lt}</span>
+            </div>
+          ))}
+          <p style={{ fontSize:9, color:'#334155', textAlign:'center', marginTop:2 }}>Im większy WIP → dłuższe paski → większe ryzyko</p>
+        </div>
+      </div>
+
+      {/* Tip */}
+      <div style={{ background:'#071428', border:'1px solid #1e3a5f', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'flex-start', gap:10 }}>
+        <span style={{ fontSize:22, flexShrink:0 }}>👨‍🍳</span>
+        <p style={{ fontSize:13, color:'#93c5fd', lineHeight:1.6 }}>
+          Piec piecze <strong style={{ color:'#60a5fa' }}>1 pizzę co 3s</strong>. Obserwuj LT i OEE — znajdź limit WIP który maksymalizuje zysk i minimalizuje ryzyko awarii.
+        </p>
+      </div>
+
       {/* Rope wybór */}
       <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
-        <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">🪢 Ustaw limit WIP (Rope)</p>
+        <p className="text-[9px] text-purple-400 uppercase tracking-widest font-bold">🪢 Ustaw limit WIP (Rope)</p>
         <div className="flex gap-2">
           {options.map(v => {
             const isSelected = selected === v;
@@ -988,13 +998,11 @@ const E4Setup = ({ onStart }) => {
 
       {selected !== null && (
         <button onClick={() => onStart(selected)}
-          className="w-full py-4 rounded-full font-black text-xl text-white transition-all active:scale-95"
-          style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow:'0 0 30px rgba(124,58,237,0.5)' }}>
-          🚀 START — Etap 4 PRO
+          className="w-full py-4 rounded-full font-black text-xl text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+          style={{ background:'linear-gradient(135deg,#f97316,#ea580c)', boxShadow:'0 0 24px rgba(249,115,22,0.4)' }}>
+          <ChevronRight size={20}/> START — Etap 4 PRO
         </button>
       )}
-
-      <style>{`@keyframes robotBounce{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(-5px)}}`}</style>
     </div>
   );
 };
@@ -1322,7 +1330,9 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
               </div>
               {/* PRO wskaźniki — tylko E4 */}
               {attempt >= 4 && (() => {
-                const chefOee = Math.min(Math.round((maxCpsRef.current||0)/WORLD_RECORD_CPS*100),100);
+                const elapsed = Math.max(1, GAME_DURATION - timeLeft);
+                const maxPossibleTaps = elapsed * (WORLD_RECORD_CPS * TAPS_PER_PIZZA);
+                const chefOee = Math.min(Math.round((robotTapsRef.current * TAPS_PER_PIZZA) / maxPossibleTaps * 100), 100);
                 const ovenOee = Math.min(Math.round(baked/Math.floor(PROD_TIME/(OVEN_MS/1000))*100),100);
                 const qual    = (baked+wip)===0?100:Math.round(baked/(baked+wip)*100);
                 const pizOee  = Math.round(0.67*(ovenOee/100)*(qual/100)*100);
@@ -1337,7 +1347,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
                     {/* OEE Zegary */}
                     <div style={{ display:'flex', gap:4 }}>
                       {[
-                        { label:'OEE Kucharz', pct:chefOee, col:'#378ADD', sub:`${maxCpsRef.current||0} CPS` },
+                        { label:'OEE Kucharz', pct:chefOee, col:robotBlockedRef.current?'#ef4444':'#378ADD', sub:robotBlockedRef.current?'⛔ stoi':`${robotTapsRef.current} tapów` },
                         { label:'OEE Piec',    pct:ovenOee, col:ovenCol,   sub:`${baked} z ${Math.floor(PROD_TIME/(OVEN_MS/1000))}` },
                         { label:'OEE Pizz.',   pct:pizOee,  col:pizCol,    sub:'67%×P×J' },
                       ].map(({ label, pct, col, sub }) => (
@@ -1504,9 +1514,9 @@ export default function PizzaTOC() {
         </div>
       </div>
       <button onClick={() => setPhase('PLAYING')}
-        className="font-black text-lg text-white px-10 py-4 rounded-2xl transition-all active:scale-95"
-        style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', boxShadow: '0 0 30px rgba(249,115,22,0.5)', letterSpacing: '0.03em' }}>
-        [ START: ETAP 1 — SPRAWDŹ SIĘ ]
+        className="w-full max-w-xs font-black text-xl text-white py-4 rounded-full transition-all active:scale-95 flex items-center justify-center gap-2"
+        style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', boxShadow: '0 0 24px rgba(249,115,22,0.4)' }}>
+        <ChevronRight size={20}/> START — Etap 1
       </button>
       <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
     </div>
