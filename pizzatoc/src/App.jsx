@@ -124,7 +124,7 @@ const WipPizzaItem = ({ index, onExplode }) => {
       triggered.current = true;
       setPhase('dying');
       setShowNum(true);
-      setTimeout(() => { setPhase('gone'); setShowNum(false); }, 800);
+      setTimeout(() => { setPhase('gone'); setShowNum(false); }, 400);
     });
   }, []);
 
@@ -159,9 +159,11 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
 
   useEffect(() => {
     const flashTimers = [
-      setTimeout(() => setFlash(false), 160),
+      setTimeout(() => setFlash(false), 80),
+      setTimeout(() => setFlash(true),  160),
+      setTimeout(() => setFlash(false), 240),
       setTimeout(() => setFlash(true),  320),
-      setTimeout(() => setFlash(false), 480),
+      setTimeout(() => setFlash(false), 400),
     ];
     const beatTimers = Array.from({ length: wipCount.current }, (_, i) =>
       setTimeout(() => {
@@ -171,7 +173,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
         setTotalLoss(t => t + PENALTY_RATE);
         setExploded(e => e + 1);
         onBalanceUpdate && onBalanceUpdate(PENALTY_RATE);
-      }, 800 + i * 1000)
+      }, 300 + i * 200)
     );
     return () => { [...flashTimers, ...beatTimers].forEach(clearTimeout); };
   }, []);
@@ -180,7 +182,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
     const id = setInterval(() => setCountdown(c => {
       if (c <= 1) { clearInterval(id); setLocked(false); return 0; }
       return c - 1;
-    }), 900);
+    }), 700);
     return () => clearInterval(id);
   }, []);
 
@@ -189,7 +191,7 @@ const OutageScreen = ({ wip, onUnlock, timeLeft, onBalanceUpdate }) => {
   return (
     <div onClick={!locked ? onUnlock : undefined}
       className="flex flex-col items-center justify-center py-4 gap-3 text-center"
-      style={{ cursor: locked ? 'default' : 'pointer' }}>
+      style={{ cursor: locked ? 'default' : 'pointer', animation: 'screenShake 0.4s ease-out' }}>
       {flash && <div className="fixed inset-0 bg-red-600 opacity-50 pointer-events-none z-50"/>}
       <Zap size={50} className="text-red-500" style={{ animation: 'pulse 0.6s ease-in-out infinite' }}/>
       <h2 className="text-3xl font-black text-red-500">AWARIA PRĄDU!</h2>
@@ -746,7 +748,7 @@ const RopeSetup = ({ initialRope, onStart }) => {
           <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Jak działa etap 3?</span>
         </div>
         <p className="text-sm text-slate-300 leading-relaxed">
-          Robot będzie klikał za Ciebie — ale tylko gdy WIP jest <strong className="text-green-400">poniżej Twojego limitu</strong>.
+          Robot będzie klikał za Ciebie — ale tylko gdy ilość w buforze jest <strong className="text-green-400">poniżej Twojego limitu</strong>.
           Gdy blat jest pełny, robot zatrzymuje się i czeka aż piec opróżni kolejkę.
         </p>
         <div className="flex items-center gap-2 mt-1 p-2 rounded-xl" style={{ background: '#0d1520', border: '1px solid #1e3a5f' }}>
@@ -834,6 +836,52 @@ const RopeSetup = ({ initialRope, onStart }) => {
     </div>
   );
 };
+
+// ─── E2 INTRO ─────────────────────────────────────────────────────────────────
+const E2Intro = ({ onStart }) => (
+  <div className="min-h-screen bg-slate-950 text-white flex flex-col p-6 gap-5">
+    <div className="text-center pt-6">
+      <div style={{ fontSize: 44, marginBottom: 12 }}>👀</div>
+      <h1 className="text-2xl font-black mb-2">Obserwuj sygnały</h1>
+      <p className="text-slate-500 text-sm">Etap 2 — tym razem blat podpowie kiedy zwolnić</p>
+    </div>
+
+    {/* Sygnały kolorów */}
+    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
+      <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
+        🎨 Co zobaczysz na blacie
+      </p>
+      {[
+        { dot: '#22c55e', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.3)', title: 'Zielony — bezpieczny poziom', sub: 'WIP 1–2 → piec ma co robić, bufor OK', tc: '#4ade80', sc: '#16a34a' },
+        { dot: '#eab308', bg: 'rgba(234,179,8,0.08)',  border: 'rgba(234,179,8,0.3)',  title: 'Żółty — uwaga, wzrasta',    sub: 'WIP 3–4 → zwolnij, zanim awaria uderzy',  tc: '#facc15', sc: '#a16207' },
+        { dot: '#ef4444', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.3)',  title: 'Czerwony — niebezpiecznie!', sub: 'WIP 5+ → każda pizza to ryzyko straty $50', tc: '#f87171', sc: '#991b1b', blink: true },
+      ].map(({ dot, bg, border, title, sub, tc, sc, blink }) => (
+        <div key={title} style={{ background: bg, border: `0.5px solid ${border}`, borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: dot, flexShrink: 0,
+            boxShadow: `0 0 8px ${dot}`, animation: blink ? 'pulse 0.6s ease-in-out infinite' : 'none' }}/>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: tc }}>{title}</div>
+            <div style={{ fontSize: 11, color: sc, marginTop: 1 }}>{sub}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Wskazówka kucharza */}
+    <div style={{ background: '#071428', border: '1px solid #1e3a5f', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      <span style={{ fontSize: 22, flexShrink: 0 }}>👨‍🍳</span>
+      <p style={{ fontSize: 13, color: '#93c5fd', lineHeight: 1.6 }}>
+        Piec piecze <strong style={{ color: '#60a5fa' }}>1 pizzę co 3s</strong>. Utrzymuj bufor nieupieczonych pizz (WIP) na odpowiednim poziomie — nie za mało, nie za dużo!
+      </p>
+    </div>
+
+    <button onClick={onStart}
+      className="w-full py-4 rounded-full font-black text-xl text-white mt-auto transition-all active:scale-95"
+      style={{ background: 'linear-gradient(135deg,#f97316,#ea580c)', boxShadow: '0 0 24px rgba(249,115,22,0.4)' }}>
+      START — Etap 2
+    </button>
+  </div>
+);
 
 // ─── E4 SETUP ─────────────────────────────────────────────────────────────────
 const E4Setup = ({ onStart }) => {
@@ -965,8 +1013,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
   const [showOutage,   setShowOutage]  = useState(false);
   const [ropeLimit,    setRopeLimit]   = useState(initialRope ?? 3);
   const [pizzaHistory, setPizzaHistory] = useState([]); // [{lt, id}] ostatnie 3 pizze
-  const pizzaIdRef    = useRef(0);
+  const pizzaIdRef      = useRef(0);
   const autoIntervalRef = useRef(null);
+  const robotTapsRef    = useRef(0); // taps wykonane przez robota
+  const robotBlockedRef = useRef(false);
 
   const balanceRef      = useRef(0);
   const wipRef          = useRef(0);
@@ -1119,7 +1169,11 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
     if (attempt < 3) return;
     autoIntervalRef.current = setInterval(() => {
       const withinLimit = ropeLimit === null || wipRef.current < ropeLimit;
-      if (withinLimit && !outageRef.current && !finishedRef.current) handleTap();
+      robotBlockedRef.current = !withinLimit;
+      if (withinLimit && !outageRef.current && !finishedRef.current) {
+        handleTap();
+        robotTapsRef.current += 1;
+      }
     }, 100);
     return () => clearInterval(autoIntervalRef.current);
   }, [ropeLimit, handleTap, attempt]);
@@ -1385,6 +1439,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
       <style>{`
         @keyframes pulse        { 0%,100%{opacity:1} 50%{opacity:0.35} }
         @keyframes wipDie       { 0%{transform:scale(1);opacity:1;filter:brightness(1)} 25%{transform:scale(1.8);opacity:1;filter:brightness(3) saturate(3)} 60%{transform:scale(1.2);opacity:0.6;filter:brightness(0.5) grayscale(0.5)} 100%{transform:scale(0.2);opacity:0;filter:grayscale(1)} }
+        @keyframes screenShake  { 0%{transform:translateX(0)} 15%{transform:translateX(-8px)} 30%{transform:translateX(8px)} 45%{transform:translateX(-6px)} 60%{transform:translateX(6px)} 75%{transform:translateX(-3px)} 100%{transform:translateX(0)} }
         @keyframes floatPenalty { 0%{transform:translateX(-50%) translateY(0);opacity:1} 100%{transform:translateX(-50%) translateY(-28px);opacity:0} }
         @keyframes autoPress    { from{transform:scale(1)} to{transform:scale(0.88)} }
         @keyframes robotBounce  { from{transform:translateX(-50%) translateY(0)} to{transform:translateX(-50%) translateY(-6px)} }
@@ -1417,7 +1472,8 @@ export default function PizzaTOC() {
     if (attempt >= MAX_ATTEMPTS) return;
     const next = attempt + 1;
     setAttempt(next);
-    if (next === 3) { setPhase('ROPE_SETUP'); }
+    if (next === 2) { setPhase('E2_INTRO'); }
+    else if (next === 3) { setPhase('ROPE_SETUP'); }
     else { setPhase('PLAYING'); }
   };
   const handleRetry    = () => { setPhase('PLAYING'); };
@@ -1456,6 +1512,10 @@ export default function PizzaTOC() {
     </div>
   );
 
+  if (phase === 'E2_INTRO') return (
+    <E2Intro onStart={() => setPhase('PLAYING')}/>
+  );
+
   if (phase === 'E4_SETUP') return (
     <E4Setup onStart={(rope) => { setInitialRope(rope); setPhase('PLAYING'); }}/>
   );
@@ -1485,7 +1545,7 @@ export default function PizzaTOC() {
       history={history}
       attempt={attempt}
       onRestart={handleRestart}
-      onContinue={attempt < MAX_ATTEMPTS ? handleContinue : undefined}
+      onContinue={attempt < MAX_ATTEMPTS && attempt !== 3 ? handleContinue : undefined}
       onRepeatE3={attempt >= 3 ? handleRepeatE3 : undefined}
       onRepeatE4={attempt >= 4 ? () => { setAttempt(4); setPhase('E4_SETUP'); } : undefined}
       onGoE4={attempt === 3 ? handleGoE4 : undefined}
