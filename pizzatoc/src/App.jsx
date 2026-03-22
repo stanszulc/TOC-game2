@@ -1331,11 +1331,19 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
               {/* PRO wskaźniki — tylko E4 */}
               {attempt >= 4 && (() => {
                 const elapsed = Math.max(1, GAME_DURATION - timeLeft);
-                const maxPossibleTaps = elapsed * (WORLD_RECORD_CPS * TAPS_PER_PIZZA);
-                const chefOee = Math.min(Math.round((robotTapsRef.current * TAPS_PER_PIZZA) / maxPossibleTaps * 100), 100);
-                const ovenOee = Math.min(Math.round(baked/Math.floor(PROD_TIME/(OVEN_MS/1000))*100),100);
-                const qual    = (baked+wip)===0?100:Math.round(baked/(baked+wip)*100);
-                const pizOee  = Math.round(0.67*(ovenOee/100)*(qual/100)*100);
+                // OEE Kucharz: taps robota vs max możliwe w czasie gry
+                const maxPossibleTaps = elapsed * WORLD_RECORD_CPS;
+                const chefOee = Math.min(Math.round(robotTapsRef.current / maxPossibleTaps * 100), 100);
+                // OEE Piec: upieczone vs max możliwe w czasie produkcji (nie całej gry)
+                const prodElapsed = Math.min(elapsed, PROD_TIME);
+                const maxByOvenSoFar = Math.max(1, Math.floor(prodElapsed / (OVEN_MS/1000)));
+                const ovenOee = Math.min(Math.round(baked / maxByOvenSoFar * 100), 100);
+                // OEE Pizzeria: Dostępność × Wydajność × Jakość
+                // Dostępność live = czas produkcji / czas całkowity (awaria obniża)
+                const availOee = Math.round(Math.min(prodElapsed, PROD_TIME) / GAME_DURATION * 100);
+                // Jakość live = 100% dopóki nie było awarii (WIP jeszcze nie przepadł)
+                const qualOee = powerOutage ? Math.round(baked / Math.max(1, baked + wip) * 100) : 100;
+                const pizOee  = Math.round((availOee/100) * (ovenOee/100) * (qualOee/100) * 100);
                 const estLt   = Math.max(3,(wip+1)*3);
                 const ltCol   = estLt<=3?'#4ade80':estLt<=6?'#eab308':'#ef4444';
                 const ARC = 85;
