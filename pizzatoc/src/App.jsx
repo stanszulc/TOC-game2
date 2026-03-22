@@ -311,7 +311,7 @@ const OeeAnalysis = ({ history, onClose }) => (
 );
 
 // ─── RESULTS TABLE ────────────────────────────────────────────────────────────
-const ResultsTable = ({ history, onRestart }) => {
+const ResultsTable = ({ history, onRestart, onRepeatE3, onRepeatE4 }) => {
   const [showOee, setShowOee] = useState(false);
   const best = [...history].sort((a, b) => b.balance - a.balance)[0];
   const bestAttempt = best?.attempt;
@@ -346,12 +346,13 @@ const ResultsTable = ({ history, onRestart }) => {
                 </span>
                 <span className={`font-black text-lg ${r.balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>{fmt(r.balance)}</span>
               </div>
-              <div className="grid grid-cols-4 gap-px bg-slate-800">
+              <div className="grid grid-cols-5 gap-px bg-slate-800">
                 {[
                   { label: '🍕', val: r.baked, color: 'text-orange-400' },
                   { label: '🗑', val: r.wipAtEnd, color: r.wipAtEnd > 0 ? 'text-red-400' : 'text-slate-500' },
                   { label: 'OEE🔥', val: `${ovenOee}%`, color: ovenOee >= 70 ? 'text-green-400' : 'text-orange-400' },
                   { label: 'OEE🍕', val: `${oeePiz}%`, color: oeePiz >= 50 ? 'text-green-400' : 'text-red-400' },
+                  { label: '⏱ LT', val: r.avgLt ? `${r.avgLt}s` : '—', color: r.avgLt ? (r.avgLt<=3?'text-green-400':r.avgLt<=6?'text-yellow-400':'text-red-400') : 'text-slate-600' },
                 ].map(({ label, val, color }) => (
                   <div key={label} className="bg-slate-950 px-2 py-1.5 text-center">
                     <div className="text-[8px] text-slate-600">{label}</div>
@@ -391,6 +392,19 @@ const ResultsTable = ({ history, onRestart }) => {
           className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
           <BarChart2 size={18} className="text-orange-400"/> Analiza OEE
         </button>
+        {onRepeatE3 && (
+          <button onClick={onRepeatE3}
+            className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
+            <RotateCcw size={16} className="text-orange-400"/> Powtórz etap 3
+          </button>
+        )}
+        {onRepeatE4 && (
+          <button onClick={onRepeatE4}
+            className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-white"
+            style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>
+            ⚡ Powtórz etap 4 PRO
+          </button>
+        )}
         <button onClick={onRestart}
           className="flex items-center justify-center gap-2 bg-white text-black px-8 py-3.5 rounded-full font-black text-base hover:bg-orange-400 transition-colors">
           <RotateCcw size={16}/> Zagraj ponownie
@@ -435,7 +449,7 @@ const getFeedbackE3 = (r, history) => {
 };
 
 // ─── ATTEMPT RESULT ───────────────────────────────────────────────────────────
-const AttemptResult = ({ result, attempt, onNext, isLast, history, onRetry, onRepeatE3 }) => {
+const AttemptResult = ({ result, attempt, onNext, isLast, history, onRetry, onRepeatE3, onGoE4 }) => {
   const { chefOee, ovenOee } = calcOee(result);
   const prevResult = history.length >= 2 ? history[history.length - 2] : null;
 
@@ -545,20 +559,27 @@ const AttemptResult = ({ result, attempt, onNext, isLast, history, onRetry, onRe
       )}
 
       {/* Przycisk dalej */}
-      {!needsRetry && (
-        <div className="flex flex-col gap-2 mt-4">
-          {isLast && onRepeatE3 && (
-            <button onClick={onRepeatE3}
-              className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
-              <RotateCcw size={16} className="text-orange-400"/> Powtórz etap 3 (inny limit WIP)
-            </button>
-          )}
+      <div className="flex flex-col gap-2 mt-4">
+        {onRepeatE3 && (
+          <button onClick={onRepeatE3}
+            className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-slate-200">
+            <RotateCcw size={16} className="text-orange-400"/> Powtórz etap 3 (inny limit WIP)
+          </button>
+        )}
+        {onGoE4 && (
+          <button onClick={onGoE4}
+            className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-bold text-base transition-colors text-white"
+            style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: '0 0 20px rgba(124,58,237,0.4)' }}>
+            ⚡ Etap 4 — tryb PRO
+          </button>
+        )}
+        {!needsRetry && !onGoE4 && (
           <button onClick={onNext}
             className="flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-400 px-10 py-4 rounded-full font-black text-lg transition-colors">
             {isLast ? <><Trophy size={18}/> Podsumowanie</> : <><ChevronRight size={18}/> Etap {attempt + 1}</>}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
@@ -698,6 +719,122 @@ const RopeSetup = ({ initialRope, onStart }) => {
   );
 };
 
+// ─── E4 SETUP ─────────────────────────────────────────────────────────────────
+const E4Setup = ({ onStart }) => {
+  const [selected, setSelected] = useState(null);
+  const [pulse, setPulse] = useState(true);
+
+  useEffect(() => {
+    if (selected !== null) { setPulse(false); return; }
+    const id = setInterval(() => setPulse(p => !p), 600);
+    return () => clearInterval(id);
+  }, [selected]);
+
+  const options = [null,1,2,3,4,5];
+
+  const desc = selected === null ? null
+    : selected === null ? 'Brak limitu — ryzyko maksymalne, LT rośnie bez ograniczeń.'
+    : selected <= 2 ? `Limit ${selected} — krótki LT, minimalne ryzyko. Piec może czekać.`
+    : selected <= 3 ? `Limit ${selected} — optymalny balans LT i przepływu.`
+    : `Limit ${selected} — długi LT, wysokie ryzyko podczas awarii.`;
+
+  const descColor = selected === null ? '#ef4444'
+    : selected <= 2 ? '#facc15' : selected <= 3 ? '#4ade80' : '#facc15';
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col p-6 gap-5">
+      <div className="text-center pt-4">
+        <div style={{ fontSize:40, marginBottom:8 }}>⚡</div>
+        <h1 className="text-2xl font-black mb-1" style={{ background:'linear-gradient(135deg,#7c3aed,#818cf8)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+          Etap 4 — tryb PRO
+        </h1>
+        <p className="text-slate-500 text-sm">Teraz widzisz wszystko — ustaw Rope i obserwuj wskaźniki live</p>
+      </div>
+
+      {/* Przepływ pizzy */}
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
+        <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">🔄 Przepływ pizzy</p>
+        <div className="flex items-center gap-1 text-center">
+          {[
+            { icon:'👆', label:'Tapujesz', sub:'5 tapów', color:'#f97316' },
+            { icon:'→', label:'', sub:'', color:'#475569' },
+            { icon:'🫓', label:'Blat WIP', sub:'kolejka', color:'#facc15' },
+            { icon:'→', label:'', sub:'', color:'#475569' },
+            { icon:'🔥', label:'Piec', sub:'3s / pizza', color:'#ef4444' },
+            { icon:'→', label:'', sub:'', color:'#475569' },
+            { icon:'🍕', label:'Gotowe', sub:'+$100', color:'#4ade80' },
+          ].map((s, i) => s.label === '' ? (
+            <div key={i} style={{ fontSize:14, color:s.color, flexShrink:0 }}>→</div>
+          ) : (
+            <div key={i} style={{ flex:1, background:'#0d1520', border:`0.5px solid ${s.color}44`, borderRadius:8, padding:'6px 4px' }}>
+              <div style={{ fontSize:16 }}>{s.icon}</div>
+              <div style={{ fontSize:8, fontWeight:700, color:s.color }}>{s.label}</div>
+              <div style={{ fontSize:7, color:'#475569' }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Lead Time */}
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-2">
+        <p className="text-[10px] text-blue-400 uppercase tracking-widest font-bold">⏱ Lead Time — czas przejścia</p>
+        <p className="text-sm text-slate-300 leading-relaxed">
+          LT to czas od momentu gdy pizza trafia na blat do momentu gdy wychodzi z pieca.
+          Każda pizza w kolejce dodaje <strong className="text-orange-400">+3 sekundy</strong> czekania.
+        </p>
+        <div className="flex gap-2 mt-1">
+          {[[1,'3s','#4ade80','WIP=0'],[3,'9s','#eab308','WIP=2'],[6,'18s','#ef4444','WIP=5']].map(([w,lt,c,lbl]) => (
+            <div key={w} style={{ flex:1, background:'#0d1520', border:`0.5px solid ${c}44`, borderRadius:8, padding:'6px 4px', textAlign:'center' }}>
+              <div style={{ fontSize:13, fontWeight:700, color:c, fontFamily:'monospace' }}>{lt}</div>
+              <div style={{ fontSize:7, color:'#475569' }}>{lbl}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500">Im mniej WIP → krótszy LT → szybszy przepływ → mniejsze ryzyko podczas awarii.</p>
+      </div>
+
+      {/* Rope wybór */}
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
+        <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold">🪢 Ustaw limit WIP (Rope)</p>
+        <div className="flex gap-2">
+          {options.map(v => {
+            const isSelected = selected === v;
+            const shouldPulse = pulse && selected === null;
+            return (
+              <button key={v ?? 'inf'} onClick={() => setSelected(v)}
+                className="flex-1 py-3 rounded-xl font-black text-lg transition-all"
+                style={{
+                  background: isSelected ? '#7c3aed' : '#1e293b',
+                  color: isSelected ? '#fff' : shouldPulse ? '#7c3aed' : '#475569',
+                  border: isSelected ? '2px solid #818cf8' : shouldPulse ? '2px solid #7c3aed88' : '2px solid #334155',
+                  boxShadow: isSelected ? '0 0 16px rgba(124,58,237,0.5)' : 'none',
+                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                }}>
+                {v === null ? '∞' : v}
+              </button>
+            );
+          })}
+        </div>
+        {selected !== null && (
+          <div className="rounded-xl p-3 text-center" style={{ background:`${descColor}11`, border:`1px solid ${descColor}44` }}>
+            <p className="text-sm font-bold" style={{ color:descColor }}>{desc}</p>
+          </div>
+        )}
+      </div>
+
+      {selected !== null && (
+        <button onClick={() => onStart(selected)}
+          className="w-full py-4 rounded-full font-black text-xl text-white transition-all active:scale-95"
+          style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow:'0 0 30px rgba(124,58,237,0.5)' }}>
+          🚀 START — Etap 4 PRO
+        </button>
+      )}
+
+      <style>{`@keyframes robotBounce{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(-5px)}}`}</style>
+    </div>
+  );
+};
+
 // ─── GAME SCREEN ──────────────────────────────────────────────────────────────
 const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
   const [timeLeft,     setTimeLeft]    = useState(GAME_DURATION);
@@ -711,6 +848,8 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
   const [powerOutage,  setPowerOutage] = useState(false);
   const [showOutage,   setShowOutage]  = useState(false);
   const [ropeLimit,    setRopeLimit]   = useState(initialRope ?? 3);
+  const [pizzaHistory, setPizzaHistory] = useState([]); // [{lt, id}] ostatnie 3 pizze
+  const pizzaIdRef    = useRef(0);
   const autoIntervalRef = useRef(null);
 
   const balanceRef      = useRef(0);
@@ -771,6 +910,10 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
           updBalance(balanceRef.current + PIZZA_VAL);
           audio.plop();
           vibrate([50, 30, 50]);
+          if (attempt >= 4) {
+            const lt = (wip + 1) * (OVEN_MS / 1000);
+            setPizzaHistory(h => [...h, { id: ++pizzaIdRef.current, lt, baked: nb }]);
+          }
           setTimeout(() => runOven.current(), 300);
         }, 500);
       }, OVEN_MS);
@@ -822,10 +965,12 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
     const earnedFromBaking = bakedRef.current * PIZZA_VAL;
     const penalty = finalWip * PENALTY_RATE;
     const finalBalance = earnedFromBaking - penalty;
+    const avgLt = pizzaHistory.length > 0 ? Math.round(pizzaHistory.reduce((s,p)=>s+p.lt,0)/pizzaHistory.length) : null;
     return onFinish({
       attempt, balance: finalBalance, maxCps: maxCpsRef.current,
       baked: bakedRef.current, wipAtEnd: finalWip, totalTaps: totalTapsRef.current,
       ropeLimit: attempt >= 3 ? ropeLimit : null,
+      avgLt,
     });
   };
 
@@ -963,6 +1108,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
 
           {attempt >= 3 ? (
             <div className="flex flex-col gap-2">
+              {/* ROPE regulator — E3 i E4 */}
               <div className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">🪢 Rope — limit WIP</span>
@@ -1004,6 +1150,93 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
                 <div style={{ position: 'absolute', right: '10%', top: 0, fontSize: 7, color: '#475569', textTransform: 'uppercase' }}>PRZYCISK</div>
                 <div style={{ position: 'absolute', right: '8%', width: 10, height: 10, borderRadius: '50%', background: ropeLimit !== null && wip >= ropeLimit ? '#334155' : '#f97316', boxShadow: ropeLimit !== null && wip >= ropeLimit ? 'none' : '0 0 8px rgba(249,115,22,0.8)', transform: 'translateX(50%)' }}/>
               </div>
+              {/* PRO wskaźniki — tylko E4 */}
+              {attempt >= 4 && (() => {
+                const chefOee = Math.min(Math.round((maxCpsRef.current||0)/WORLD_RECORD_CPS*100),100);
+                const ovenOee = Math.min(Math.round(baked/Math.floor(PROD_TIME/(OVEN_MS/1000))*100),100);
+                const qual    = (baked+wip)===0?100:Math.round(baked/(baked+wip)*100);
+                const pizOee  = Math.round(0.67*(ovenOee/100)*(qual/100)*100);
+                const estLt   = Math.max(3,(wip+1)*3);
+                const ltCol   = estLt<=3?'#4ade80':estLt<=6?'#eab308':'#ef4444';
+                const ARC = 85;
+                const gauge = (pct) => `${ARC - ARC*Math.min(pct,100)/100}`;
+                const ovenCol = ovenOee>=70?'#4ade80':'#f97316';
+                const pizCol  = pizOee>=50?'#4ade80':pizOee>=25?'#facc15':'#ef4444';
+                return (
+                  <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                    {/* OEE Zegary */}
+                    <div style={{ display:'flex', gap:4 }}>
+                      {[
+                        { label:'OEE Kucharz', pct:chefOee, col:'#378ADD', sub:`${maxCpsRef.current||0} CPS` },
+                        { label:'OEE Piec',    pct:ovenOee, col:ovenCol,   sub:`${baked} z ${Math.floor(PROD_TIME/(OVEN_MS/1000))}` },
+                        { label:'OEE Pizz.',   pct:pizOee,  col:pizCol,    sub:'67%×P×J' },
+                      ].map(({ label, pct, col, sub }) => (
+                        <div key={label} style={{ flex:1, background:'#0d1520', border:'0.5px solid #1e3a5f', borderRadius:10, padding:'6px 4px', display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
+                          <div style={{ fontSize:6, color:'#475569', textTransform:'uppercase', letterSpacing:'0.06em', textAlign:'center' }}>{label}</div>
+                          <svg width="64" height="36" viewBox="0 0 70 40">
+                            <path d="M 8 36 A 27 27 0 0 1 62 36" fill="none" stroke="#1e293b" strokeWidth="7" strokeLinecap="round"/>
+                            <path d="M 8 36 A 27 27 0 0 1 62 36" fill="none" stroke={col} strokeWidth="7" strokeLinecap="round"
+                              strokeDasharray={ARC} strokeDashoffset={gauge(pct)} style={{ transition:'stroke-dashoffset 0.6s ease' }}/>
+                            <text x="35" y="34" textAnchor="middle" fontSize="11" fontWeight="700" fill={col} fontFamily="monospace">{pct}%</text>
+                          </svg>
+                          <div style={{ fontSize:6, color:'#475569' }}>{sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Lead Time pasek */}
+                    <div style={{ background:'#0d1520', border:'0.5px solid #1e3a5f', borderRadius:8, padding:'5px 8px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3 }}>
+                        <span style={{ fontSize:7, color:'#475569', textTransform:'uppercase', letterSpacing:'0.05em' }}>⏱ Lead Time</span>
+                        <span style={{ fontSize:13, fontWeight:700, fontFamily:'monospace', color:ltCol }}>{estLt}s</span>
+                      </div>
+                      <div style={{ height:3, background:'#1e293b', borderRadius:2 }}>
+                        <div style={{ height:'100%', borderRadius:2, background:ltCol, width:`${Math.min(estLt/15*100,100)}%`, transition:'all 0.4s' }}/>
+                      </div>
+                      <div style={{ fontSize:6, color:'#475569', marginTop:2 }}>WIP={wip} → ~{estLt}s czekania</div>
+                    </div>
+                    {/* Pizze — LT chart bez limitu */}
+                    <div style={{ background:'#0d1520', border:'0.5px solid #1e3a5f', borderRadius:8, padding:'5px 8px', display:'flex', flexDirection:'column', gap:3 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:1 }}>
+                        <span style={{ fontSize:6, color:'#475569', textTransform:'uppercase', letterSpacing:'0.06em' }}>LT per pizza</span>
+                        <span style={{ fontSize:6, color:'#475569' }}>{pizzaHistory.length} szt.</span>
+                      </div>
+                      {pizzaHistory.length === 0 && (
+                        <div style={{ fontSize:7, color:'#334155', textAlign:'center', padding:'4px 0' }}>czekam na pierwsze wypieczenie...</div>
+                      )}
+                      {/* LT pizzerii — gruba linia (3x) */}
+                      {pizzaHistory.length > 0 && (() => {
+                        const avgLt = Math.round(pizzaHistory.reduce((s,p)=>s+p.lt,0)/pizzaHistory.length);
+                        const avgCol = avgLt<=3?'#4ade80':avgLt<=6?'#eab308':'#ef4444';
+                        return (
+                          <div style={{ marginBottom:3 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+                              <span style={{ fontSize:6, color:'#475569' }}>avg LT pizzerii</span>
+                              <span style={{ fontSize:10, fontWeight:700, fontFamily:'monospace', color:avgCol }}>{avgLt}s</span>
+                            </div>
+                            <div style={{ height:9, background:'#1e293b', borderRadius:3 }}>
+                              <div style={{ height:'100%', borderRadius:3, background:avgCol, width:`${Math.min(avgLt/30*100,100)}%`, transition:'all 0.5s', opacity:0.9 }}/>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Indywidualne pizze */}
+                      {pizzaHistory.map((p, idx) => {
+                        const lc = p.lt<=3?'#4ade80':p.lt<=6?'#eab308':'#ef4444';
+                        return (
+                          <div key={p.id} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                            <span style={{ fontSize:9, minWidth:14, textAlign:'right', color:'#475569', fontFamily:'monospace' }}>{idx+1}</span>
+                            <span style={{ fontSize:9 }}>🍕</span>
+                            <div style={{ flex:1, height:3, background:'#1e293b', borderRadius:2 }}>
+                              <div style={{ height:'100%', borderRadius:2, background:lc, width:`${Math.min(p.lt/30*100,100)}%`, animation:'proBarIn 0.5s ease-out' }}/>
+                            </div>
+                            <span style={{ fontSize:8, fontWeight:700, fontFamily:'monospace', color:lc, minWidth:22, textAlign:'right' }}>{p.lt}s</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div style={{ height: 120 }}/>
@@ -1040,6 +1273,7 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
         @keyframes autoPress    { from{transform:scale(1)} to{transform:scale(0.88)} }
         @keyframes robotBounce  { from{transform:translateX(-50%) translateY(0)} to{transform:translateX(-50%) translateY(-6px)} }
         @keyframes robotWarn    { from{transform:translateX(-50%) translateY(0) rotate(-10deg)} to{transform:translateX(-50%) translateY(-8px) rotate(10deg)} }
+        @keyframes proBarIn     { from{width:0} to{width:var(--w)} }
       `}</style>
     </div>
   );
@@ -1047,12 +1281,12 @@ const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope }) => {
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
-  const [phase,      setPhase]      = useState('START');
-  const [attempt,    setAttempt]    = useState(1);
+  const [phase,      setPhase]      = useState('E4_SETUP');
+  const [attempt,    setAttempt]    = useState(4);
   const [history,    setHistory]    = useState([]);
   const [lastResult, setLastResult] = useState(null);
   const [initialRope, setInitialRope] = useState(3);
-  const MAX_ATTEMPTS = 3;
+  const MAX_ATTEMPTS = 4;
 
   const handleFinish = (result) => {
     const h = [...history, result];
@@ -1062,13 +1296,15 @@ export default function PizzaTOC() {
   };
 
   const handleNext  = () => {
+    if (attempt >= MAX_ATTEMPTS) { setPhase('FINAL'); return; }
     const next = attempt + 1;
     setAttempt(next);
     if (next === 3) { setPhase('ROPE_SETUP'); }
     else { setPhase('PLAYING'); }
   };
+  const handleGoE4 = () => { setAttempt(4); setPhase('E4_SETUP'); };
   const handleRetry    = () => { setPhase('PLAYING'); };
-  const handleRepeatE3  = () => { setPhase('ROPE_SETUP'); };
+  const handleRepeatE3  = () => { setAttempt(3); setPhase('ROPE_SETUP'); };
   const handleRestart = () => { setPhase('START'); setAttempt(1); setHistory([]); setLastResult(null); };
 
   if (phase === 'START') return (
@@ -1103,6 +1339,10 @@ export default function PizzaTOC() {
     </div>
   );
 
+  if (phase === 'E4_SETUP') return (
+    <E4Setup onStart={(rope) => { setInitialRope(rope); setPhase('PLAYING'); }}/>
+  );
+
   if (phase === 'ROPE_SETUP') return (
     <RopeSetup
       initialRope={initialRope}
@@ -1120,14 +1360,16 @@ export default function PizzaTOC() {
       attempt={attempt}
       onNext={handleNext}
       onRetry={handleRetry}
-      onRepeatE3={attempt >= MAX_ATTEMPTS ? handleRepeatE3 : undefined}
+      onRepeatE3={attempt === 3 ? handleRepeatE3 : undefined}
+      onGoE4={attempt === 3 ? handleGoE4 : undefined}
+
       isLast={attempt >= MAX_ATTEMPTS}
       history={history}
     />
   );
 
   if (phase === 'FINAL') return (
-    <ResultsTable history={history} onRestart={handleRestart}/>
+    <ResultsTable history={history} onRestart={handleRestart} onRepeatE3={handleRepeatE3} onRepeatE4={() => { setAttempt(4); setPhase('E4_SETUP'); }}/>
   );
 
   return null;
