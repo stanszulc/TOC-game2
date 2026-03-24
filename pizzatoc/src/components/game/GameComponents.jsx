@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Zap } from 'lucide-react';
-import { PENALTY_RATE } from '../config/constants';
-import { audio } from '../audio/audio';
+import { PENALTY_RATE } from '../../config/constants';
+import { audio } from '../../audio/audio';
 
 // ─── OVEN SVG ─────────────────────────────────────────────────────────────────
 export const OvenSVG = ({ active, progress, pizzaPhase }) => {
