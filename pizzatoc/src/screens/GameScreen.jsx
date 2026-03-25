@@ -107,8 +107,8 @@ export const GameScreen = ({ attempt, onFinish, showTrafficLight, initialRope })
   useEffect(() => {
     const id = setInterval(() => {
       setTimeLeft(prev => {
-        const next = prev - 1;
-        if (next <= OUTAGE_START && !outageRef.current) {
+        const next = prev - 1;        
+        if (next <= OUTAGE_START && !outageRef.current && attempt >= 2) {
           outageRef.current = true;
           setPowerOutage(true);
           setShowOutage(true);
