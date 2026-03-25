@@ -179,19 +179,23 @@ export const World11Screen = ({ onFinish }) => {
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans select-none flex flex-col px-4 pt-5 pb-4 gap-3">
 
+      {/* HUD */}
       <div className="flex items-start justify-between">
-        <div className={`text-4xl font-black tabular-nums leading-none ${balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-          {fmt(balance)}
-        </div>
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-start">
           <p className="text-[8px] text-slate-600 uppercase tracking-widest">Świat 1.1</p>
           <div className={`text-4xl font-black font-mono tabular-nums leading-none ${timeLeft <= 10 ? 'text-orange-400' : 'text-white'}`}>
             {timeLeft}<span className="text-sm text-slate-500">s</span>
           </div>
         </div>
+        <div className={`text-4xl font-black tabular-nums leading-none ${balance >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+          {fmt(balance)}
+        </div>
       </div>
 
+      {/* ŚRODKOWY ROW */}
       <div className="flex items-stretch gap-2">
+
+        {/* Blat surowe */}
         <div className="flex-1 bg-orange-950 border border-orange-900 rounded-2xl p-2 min-h-[110px] flex flex-col gap-1">
           <span className="text-[7px] text-orange-800 uppercase tracking-widest font-bold">⬤ Surowe</span>
           <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
@@ -204,10 +208,12 @@ export const World11Screen = ({ onFinish }) => {
           <span className="text-[8px] text-orange-800">{wip} szt.</span>
         </div>
 
+        {/* Piec */}
         <div className="flex flex-col items-center flex-shrink-0">
           <OvenSVG active={ovenActive} progress={ovenProgress} pizzaPhase={pizzaPhase}/>
         </div>
 
+        {/* Blat gotowe */}
         <div className="flex-1 bg-green-950 border border-green-900 rounded-2xl p-2 min-h-[110px] flex flex-col gap-1">
           <span className="text-[7px] text-green-800 uppercase tracking-widest font-bold">⬤ Gotowe</span>
           <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
@@ -219,11 +225,16 @@ export const World11Screen = ({ onFinish }) => {
           </div>
           <span className="text-[8px] text-green-800">{baked} szt.</span>
         </div>
+
+        {/* Termometr */}
         <ThermometerInline balance={balance} maxBalance={MAX_BAKED * PIZZA_VAL}/>
+
       </div>
 
+      {/* Spacer */}
       <div style={{ flex: 1 }}/>
 
+      {/* Przycisk */}
       <div className="flex flex-col items-center gap-1">
         <div className="relative w-36 h-36">
           <svg width="144" height="144" style={{ position: 'absolute', top: 0, left: 0 }}>
