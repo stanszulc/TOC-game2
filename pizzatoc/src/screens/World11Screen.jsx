@@ -208,6 +208,17 @@ export const World11Screen = ({ onFinish }) => {
           <OvenSVG active={ovenActive} progress={ovenProgress} pizzaPhase={pizzaPhase}/>
         </div>
 
+        <div className="flex-1 bg-green-950 border border-green-900 rounded-2xl p-2 min-h-[110px] flex flex-col gap-1">
+          <span className="text-[7px] text-green-800 uppercase tracking-widest font-bold">⬤ Gotowe</span>
+          <div className="flex flex-wrap gap-1 flex-1 items-start content-start">
+            {baked === 0 && <span className="text-green-900 text-[9px] italic">czeka...</span>}
+            {[...Array(Math.min(baked, 8))].map((_, i) => (
+              <div key={i} className="w-5 h-5 rounded-full bg-green-900 border border-green-500 flex items-center justify-center text-[10px]">🍕</div>
+            ))}
+            {baked > 8 && <span className="text-green-400 text-[9px] font-bold">+{baked - 8}</span>}
+          </div>
+          <span className="text-[8px] text-green-800">{baked} szt.</span>
+        </div>
         <ThermometerInline balance={balance} maxBalance={MAX_BAKED * PIZZA_VAL}/>
       </div>
 
