@@ -1,0 +1,15 @@
+image: gitpod/workspace-node-lts
+
+tasks:
+  - name: Install & Start
+    init: |
+      cd pizzatoc
+      npm install
+    command: |
+      cd pizzatoc
+      npm run dev -- --host
+
+ports:
+  - port: 5173
+    onOpen: open-browser
+    visibility: public
