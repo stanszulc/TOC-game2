@@ -5,7 +5,7 @@ import { E2Intro, RopeSetup, E4Setup } from './screens/IntroScreens';
 import { EduScreen } from './screens/EduScreen';
 import { SummaryScreen } from './screens/SummaryScreen';
 import { GameScreen } from './screens/GameScreen';
-
+import { World11Screen } from './screens/World11Screen';
 const MAX_ATTEMPTS = 4;
 
 // ─── START SCREEN ─────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ const StartScreen = ({ onStart }) => (
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function PizzaTOC() {
   const [phase,       setPhase]      = useState('START');
-  const [attempt,     setAttempt]    = useState(1);
+  const [attempt,     setAttempt]    = useState(0);
   const [history,     setHistory]    = useState([]);
   const [lastResult,  setLastResult] = useState(null);
   const [initialRope, setInitialRope] = useState(3);
@@ -68,7 +68,8 @@ export default function PizzaTOC() {
   // ── Routing ───────────────────────────────────────────────────────────────
   switch (phase) {
     case 'START':
-      return <StartScreen onStart={() => setPhase('PLAYING')}/>;
+      
+      return <World11Screen onFinish={handleFinish}/>;
 
     case 'E2_INTRO':
       return <E2Intro onStart={() => setPhase('PLAYING')}/>;
